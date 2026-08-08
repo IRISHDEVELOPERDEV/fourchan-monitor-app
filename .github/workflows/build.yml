@@ -1,0 +1,61 @@
+name: build-apk
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Scaffold Android project
+        run: flutter create --org com.chris.fourchanmonitor --platforms=android --project-name fourchan_monitor .
+
+      - name: Overlay app source
+        run: |
+          cp -f app_src/pubspec.yaml pubspec.yaml
+          rm -rf lib
+          cp -r app_src/lib lib
+          rm -f test/widget_test.dart
+
+      - name: Allow cleartext HTTP (API is http://)
+        run: |
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          if 'usesCleartextTraffic' not in s:
+              s = s.replace('<application',
+                            '<application android:usesCleartextTraffic="true"', 1)
+              open(p, 'w').write(s)
+          print(s)
+          PY
+
+      - name: Force minSdk 23
+        run: |
+          f=$(ls android/app/build.gradle android/app/build.gradle.kts 2>/dev/null | head -1)
+          echo "gradle file: $f"
+          sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*[A-Za-z0-9_.]+/minSdk = 23/' "$f"
+          grep -n "minSdk" "$f" || true
+
+      - name: Build APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fourchan-monitor-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error

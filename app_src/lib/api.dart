@@ -3,14 +3,18 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persisted connection config (server URL + API token).
+/// Pre-filled for testing so the app works immediately on install; a saved value
+/// from Settings overrides these defaults.
 class Config {
   static String baseUrl = 'http://2.24.129.131:8787';
-  static String token = '';
+  static String token = 'OkVPZPZzUNhe_ctMDkoOzJ_6vKKeyqwJ';
 
   static Future<void> load() async {
     final p = await SharedPreferences.getInstance();
-    baseUrl = p.getString('baseUrl') ?? baseUrl;
-    token = p.getString('token') ?? '';
+    final b = p.getString('baseUrl');
+    if (b != null && b.isNotEmpty) baseUrl = b;
+    final t = p.getString('token');
+    if (t != null && t.isNotEmpty) token = t;
   }
 
   static Future<void> save(String url, String tok) async {

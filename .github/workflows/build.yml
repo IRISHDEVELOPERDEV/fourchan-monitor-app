@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to publish the release
     steps:
       - uses: actions/checkout@v4
 
@@ -54,8 +56,21 @@ jobs:
           flutter pub get
           flutter build apk --release
 
+      - name: Rename APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk fourchan-monitor.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: fourchan-monitor-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: fourchan-monitor.apk
           if-no-files-found: error
+
+      # Publish/refresh a stable "latest" release so the download URL never changes:
+      # https://github.com/IRISHDEVELOPERDEV/fourchan-monitor-app/releases/download/latest/fourchan-monitor.apk
+      - name: Publish latest APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest APK (auto-built)
+          files: fourchan-monitor.apk
+          body: "Auto-built from the latest commit. Install this APK; it works out of the box for testing."

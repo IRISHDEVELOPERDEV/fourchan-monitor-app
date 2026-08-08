@@ -17,12 +17,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
 
       - name: Scaffold Android project
         run: flutter create --org com.chris.fourchanmonitor --platforms=android --project-name fourchan_monitor .
@@ -34,15 +32,18 @@ jobs:
           cp -r app_src/lib lib
           rm -f test/widget_test.dart
 
-      - name: Allow cleartext HTTP (API is http://)
+      - name: Add INTERNET permission + allow cleartext HTTP
         run: |
           python3 - <<'PY'
           p = 'android/app/src/main/AndroidManifest.xml'
           s = open(p).read()
+          if 'android.permission.INTERNET' not in s:
+              s = s.replace('<application',
+                            '<uses-permission android:name="android.permission.INTERNET"/>\n    <application', 1)
           if 'usesCleartextTraffic' not in s:
               s = s.replace('<application',
                             '<application android:usesCleartextTraffic="true"', 1)
-              open(p, 'w').write(s)
+          open(p, 'w').write(s)
           print(s)
           PY
 

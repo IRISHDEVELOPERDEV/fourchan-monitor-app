@@ -1,0 +1,53 @@
+import 'package:flutter/material.dart';
+import 'api.dart';
+import 'feed_screen.dart';
+import 'search_screen.dart';
+import 'settings_screen.dart';
+
+// v1: feed + search + settings + live auto-refresh (no Firebase push yet).
+// Push notifications are added in v2 once the Firebase project is set up.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Config.load();
+  runApp(const MonitorApp());
+}
+
+class MonitorApp extends StatelessWidget {
+  const MonitorApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: '4chan Monitor',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(useMaterial3: true),
+      home: const Home(),
+    );
+  }
+}
+
+class Home extends StatefulWidget {
+  const Home({super.key});
+  @override
+  State<Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  int _i = 0;
+  final _pages = const [FeedScreen(), SearchScreen(), SettingsScreen()];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_i],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _i,
+        onDestinationSelected: (v) => setState(() => _i = v),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.dynamic_feed), label: 'Feed'),
+          NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
+          NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
+        ],
+      ),
+    );
+  }
+}

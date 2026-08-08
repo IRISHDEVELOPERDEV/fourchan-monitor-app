@@ -1,0 +1,102 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Persisted connection config (server URL + API token).
+class Config {
+  static String baseUrl = 'http://2.24.129.131:8787';
+  static String token = '';
+
+  static Future<void> load() async {
+    final p = await SharedPreferences.getInstance();
+    baseUrl = p.getString('baseUrl') ?? baseUrl;
+    token = p.getString('token') ?? '';
+  }
+
+  static Future<void> save(String url, String tok) async {
+    final p = await SharedPreferences.getInstance();
+    baseUrl = url.trim().replaceAll(RegExp(r'/$'), '');
+    token = tok.trim();
+    await p.setString('baseUrl', baseUrl);
+    await p.setString('token', token);
+  }
+}
+
+class Post {
+  final int no;
+  final String board;
+  final int thread;
+  final String name;
+  final String now;
+  final String com;
+  final String? ext;
+  final String matched;
+  final String url;
+  final String? media;
+
+  Post.fromJson(Map<String, dynamic> j)
+      : no = j['no'] ?? 0,
+        board = j['board'] ?? '',
+        thread = j['thread'] ?? 0,
+        name = j['name'] ?? 'Anonymous',
+        now = j['now'] ?? '',
+        com = j['com'] ?? '',
+        ext = j['ext'],
+        matched = j['matched'] ?? '',
+        url = j['url'] ?? '',
+        media = j['media'];
+
+  String get _e => (ext ?? '').toLowerCase();
+  bool get hasMedia => media != null && media!.isNotEmpty;
+  bool get isVideo => _e == '.webm' || _e == '.mp4';
+  bool get isImage => ['.jpg', '.jpeg', '.png', '.gif', '.webp'].contains(_e);
+  bool get isKeyword => matched.isNotEmpty;
+}
+
+class Api {
+  static Map<String, String> get _h => {'Authorization': 'Bearer ${Config.token}'};
+  static const _t = Duration(seconds: 20);
+
+  static Future<List<Post>> feed({int? before, int limit = 50}) async {
+    var u = '${Config.baseUrl}/feed?limit=$limit';
+    if (before != null) u += '&before=$before';
+    final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
+    if (r.statusCode != 200) throw Exception('feed HTTP ${r.statusCode}');
+    return ((jsonDecode(r.body)['posts']) as List)
+        .map((e) => Post.fromJson(e)).toList();
+  }
+
+  static Future<List<Post>> search(String q) async {
+    final u = '${Config.baseUrl}/search?q=${Uri.encodeQueryComponent(q)}';
+    final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
+    if (r.statusCode != 200) throw Exception('search HTTP ${r.statusCode}');
+    return ((jsonDecode(r.body)['posts']) as List)
+        .map((e) => Post.fromJson(e)).toList();
+  }
+
+  static Future<bool> getVerbose() async {
+    final r = await http.get(Uri.parse('${Config.baseUrl}/settings'), headers: _h).timeout(_t);
+    return jsonDecode(r.body)['verbose'] == true;
+  }
+
+  static Future<bool> setVerbose(bool v) async {
+    final r = await http.post(Uri.parse('${Config.baseUrl}/settings'),
+        headers: {..._h, 'Content-Type': 'application/json'},
+        body: jsonEncode({'verbose': v})).timeout(_t);
+    return jsonDecode(r.body)['verbose'] == true;
+  }
+
+  static Future<Map<String, dynamic>> health() async {
+    final r = await http.get(Uri.parse('${Config.baseUrl}/health'), headers: _h).timeout(_t);
+    if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');
+    return jsonDecode(r.body) as Map<String, dynamic>;
+  }
+
+  static Future<void> registerDevice(String fcmToken) async {
+    try {
+      await http.post(Uri.parse('${Config.baseUrl}/devices'),
+          headers: {..._h, 'Content-Type': 'application/json'},
+          body: jsonEncode({'token': fcmToken})).timeout(_t);
+    } catch (_) {/* best effort */}
+  }
+}

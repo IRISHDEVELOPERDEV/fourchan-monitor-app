@@ -1,0 +1,10 @@
+# Only the app source + workflow live here; the Flutter project is scaffolded in CI.
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+android/
+ios/
+.metadata

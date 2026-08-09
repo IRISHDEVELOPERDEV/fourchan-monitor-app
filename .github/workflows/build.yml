@@ -30,6 +30,7 @@ jobs:
           cp -f app_src/pubspec.yaml pubspec.yaml
           rm -rf lib
           cp -r app_src/lib lib
+          cp -f app_src/icon.png icon.png
           rm -f test/widget_test.dart
 
       - name: Add INTERNET permission + allow cleartext HTTP
@@ -43,6 +44,7 @@ jobs:
           if 'usesCleartextTraffic' not in s:
               s = s.replace('<application',
                             '<application android:usesCleartextTraffic="true"', 1)
+          s = s.replace('android:label="fourchan_monitor"', 'android:label="X4chan"')
           open(p, 'w').write(s)
           print(s)
           PY
@@ -57,6 +59,7 @@ jobs:
       - name: Build APK
         run: |
           flutter pub get
+          dart run flutter_launcher_icons
           flutter build apk --release
 
       - name: Rename APK

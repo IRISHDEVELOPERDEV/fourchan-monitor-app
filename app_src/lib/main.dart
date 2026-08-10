@@ -17,9 +17,22 @@ class MonitorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '4chan Monitor',
+      title: 'X4chan',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF43B14B),   // X4chan clover green
+          brightness: Brightness.dark,
+        ),
+        scaffoldBackgroundColor: const Color(0xFF0E0F11),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0E0F11),
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+              fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
+        ),
+      ),
       home: const Home(),
     );
   }

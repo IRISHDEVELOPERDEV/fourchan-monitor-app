@@ -24,8 +24,8 @@ class _FeedScreenState extends State<FeedScreen> {
     _scroll.addListener(() {
       if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 500) _load();
     });
-    // Live updates: pull any newer posts every 12s and slot them in at the top.
-    _live = Timer.periodic(const Duration(seconds: 12), (_) => _pollNew());
+    // Live updates: pull any newer posts every 5s and slot them in at the top.
+    _live = Timer.periodic(const Duration(seconds: 5), (_) => _pollNew());
   }
 
   @override

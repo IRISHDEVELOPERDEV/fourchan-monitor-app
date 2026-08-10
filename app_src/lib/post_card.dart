@@ -8,61 +8,97 @@ class PostCard extends StatelessWidget {
   final Post post;
   const PostCard(this.post, {super.key});
 
+  static const _green = Color(0xFF43B14B);
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              if (post.isKeyword)
-                Container(
-                  margin: const EdgeInsets.only(right: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                      color: Colors.red.shade700,
-                      borderRadius: BorderRadius.circular(4)),
-                  child: Text(post.matched,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-              Expanded(
-                child: Text('${post.name} · ${post.now} · No.${post.no}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF17191C),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: post.isKeyword ? _green.withOpacity(0.55) : Colors.white.withOpacity(0.06),
+          width: post.isKeyword ? 1.4 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            CircleAvatar(
+              radius: 14,
+              backgroundColor: _green.withOpacity(0.18),
+              child: const Text('A',
+                  style: TextStyle(color: _green, fontWeight: FontWeight.bold, fontSize: 13)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(post.name,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text('${post.ago} · No.${post.no}',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                ],
               ),
-            ]),
-            const SizedBox(height: 6),
-            if (post.hasMedia && post.isImage)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
-                  imageUrl: post.media!,
-                  fit: BoxFit.cover,
-                  placeholder: (c, u) => const SizedBox(
-                      height: 120, child: Center(child: CircularProgressIndicator())),
-                  errorWidget: (c, u, e) => const SizedBox(
-                      height: 80, child: Center(child: Icon(Icons.broken_image))),
-                ),
+            ),
+            if (post.isKeyword)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                    color: _green, borderRadius: BorderRadius.circular(20)),
+                child: Text(post.matched,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black)),
               ),
-            if (post.hasMedia && post.isVideo) VideoTile(post.media!),
-            if (post.com.isNotEmpty)
-              Padding(padding: const EdgeInsets.only(top: 6), child: SelectableText(post.com)),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                // Open our server's PERMANENT copy of the post (never 404s), not the
-                // ephemeral 4chan thread that gets deleted.
-                onPressed: () => launchUrl(
-                    Uri.parse('${Config.baseUrl}/p/${post.no}'),
-                    mode: LaunchMode.externalApplication),
-                icon: const Icon(Icons.open_in_new, size: 16),
-                label: const Text('Open post'),
+          ]),
+          if (post.hasMedia && post.isImage) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: CachedNetworkImage(
+                imageUrl: post.media!,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (c, u) => Container(
+                    height: 160,
+                    color: Colors.black26,
+                    child: const Center(child: CircularProgressIndicator())),
+                errorWidget: (c, u, e) => Container(
+                    height: 80,
+                    color: Colors.black26,
+                    child: const Center(child: Icon(Icons.broken_image))),
               ),
             ),
           ],
-        ),
+          if (post.hasMedia && post.isVideo) ...[
+            const SizedBox(height: 10),
+            VideoTile(post.media!),
+          ],
+          if (post.com.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SelectableText(post.com,
+                style: const TextStyle(fontSize: 14.5, height: 1.4)),
+          ],
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              // Opens our server's PERMANENT copy (never 404s), not the 4chan thread.
+              style: TextButton.styleFrom(
+                  foregroundColor: _green,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 34)),
+              onPressed: () => launchUrl(
+                  Uri.parse('${Config.baseUrl}/p/${post.no}'),
+                  mode: LaunchMode.externalApplication),
+              icon: const Icon(Icons.open_in_new, size: 15),
+              label: const Text('Open'),
+            ),
+          ),
+        ],
       ),
     );
   }

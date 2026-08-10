@@ -32,6 +32,7 @@ class Post {
   final int thread;
   final String name;
   final String now;
+  final int ts;
   final String com;
   final String? ext;
   final String matched;
@@ -44,11 +45,22 @@ class Post {
         thread = j['thread'] ?? 0,
         name = j['name'] ?? 'Anonymous',
         now = j['now'] ?? '',
+        ts = j['ts'] ?? 0,
         com = j['com'] ?? '',
         ext = j['ext'],
         matched = j['matched'] ?? '',
         url = j['url'] ?? '',
         media = j['media'];
+
+  String get ago {
+    if (ts == 0) return now;
+    final d = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(ts * 1000));
+    if (d.inSeconds < 60) return 'just now';
+    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+    if (d.inHours < 24) return '${d.inHours}h ago';
+    return '${d.inDays}d ago';
+  }
 
   String get _e => (ext ?? '').toLowerCase();
   bool get hasMedia => media != null && media!.isNotEmpty;

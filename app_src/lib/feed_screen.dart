@@ -26,10 +26,16 @@ class _FeedScreenState extends State<FeedScreen> {
     });
     // Live updates: pull any newer posts every 5s and slot them in at the top.
     _live = Timer.periodic(const Duration(seconds: 5), (_) => _pollNew());
+    feedRefresh.addListener(_onFilterChanged);   // re-filter when the toggle flips
+  }
+
+  void _onFilterChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    feedRefresh.removeListener(_onFilterChanged);
     _live?.cancel();
     _scroll.dispose();
     super.dispose();
@@ -87,20 +93,35 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                 ),
               ])
-            : ListView.builder(
-                controller: _scroll,
-                itemCount: _posts.length + 1,
-                itemBuilder: (c, i) {
-                  if (i >= _posts.length) {
-                    return _loading
-                        ? const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(child: CircularProgressIndicator()))
-                        : const SizedBox(height: 48);
-                  }
-                  return PostCard(_posts[i]);
-                },
-              ),
+            : Builder(builder: (context) {
+                final shown = Config.keywordsOnly
+                    ? _posts.where((p) => p.isKeyword).toList()
+                    : _posts;
+                if (shown.isEmpty && !_loading) {
+                  return ListView(children: const [
+                    Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(
+                          child: Text('No EE/Emily posts yet.\nPull down to refresh.',
+                              textAlign: TextAlign.center)),
+                    ),
+                  ]);
+                }
+                return ListView.builder(
+                  controller: _scroll,
+                  itemCount: shown.length + 1,
+                  itemBuilder: (c, i) {
+                    if (i >= shown.length) {
+                      return _loading
+                          ? const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator()))
+                          : const SizedBox(height: 48);
+                    }
+                    return PostCard(shown[i]);
+                  },
+                );
+              }),
       ),
     );
   }

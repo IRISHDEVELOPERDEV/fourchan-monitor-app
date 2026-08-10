@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final h = await Api.health();
       final v = await Api.getVerbose();
+      await Config.setKeywordsOnly(!v);   // sync feed filter to the server mode
       setState(() {
         _verbose = v;
         _status = 'Connected — mode: ${h['mode']}, '
@@ -66,6 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ? null
               : (v) async {
                   final nv = await Api.setVerbose(v);
+                  await Config.setKeywordsOnly(!nv);  // filter the app feed too
                   setState(() => _verbose = nv);
                 },
         ),

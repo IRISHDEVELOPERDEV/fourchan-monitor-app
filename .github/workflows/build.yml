@@ -71,12 +71,16 @@ jobs:
           path: fourchan-monitor.apk
           if-no-files-found: error
 
-      # Publish/refresh a stable "latest" release so the download URL never changes:
+      # Recreate the "latest" release each build so its DATE is always current
+      # (reusing a release keeps its old date, which looks stale). Same download URL:
       # https://github.com/IRISHDEVELOPERDEV/fourchan-monitor-app/releases/download/latest/fourchan-monitor.apk
-      - name: Publish latest APK release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: Latest APK (auto-built)
-          files: fourchan-monitor.apk
-          body: "Auto-built from the latest commit. Install this APK; it works out of the box for testing."
+      - name: Publish latest APK release (fresh date each build)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --repo "${{ github.repository }}" --cleanup-tag -y || true
+          sleep 3
+          gh release create latest fourchan-monitor.apk \
+            --repo "${{ github.repository }}" \
+            --title "X4chan APK — $(date -u '+%Y-%m-%d %H:%M UTC')" \
+            --notes "Auto-built $(date -u '+%Y-%m-%d %H:%M UTC') from commit ${{ github.sha }}. Install this APK — works out of the box."

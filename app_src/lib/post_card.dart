@@ -57,20 +57,40 @@ class PostCard extends StatelessWidget {
           ]),
           if (post.hasMedia && post.isImage) ...[
             const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: CachedNetworkImage(
-                imageUrl: post.media!,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (c, u) => Container(
-                    height: 160,
-                    color: Colors.black26,
-                    child: const Center(child: CircularProgressIndicator())),
-                errorWidget: (c, u, e) => Container(
-                    height: 80,
-                    color: Colors.black26,
-                    child: const Center(child: Icon(Icons.broken_image))),
+            GestureDetector(
+              // Tap to open fullscreen with pinch-to-zoom.
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => _FullscreenImage(post.media!))),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: post.media!,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (c, u) => Container(
+                          height: 160,
+                          color: Colors.black26,
+                          child: const Center(child: CircularProgressIndicator())),
+                      errorWidget: (c, u, e) => Container(
+                          height: 80,
+                          color: Colors.black26,
+                          child: const Center(child: Icon(Icons.broken_image))),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(6)),
+                      child: const Icon(Icons.zoom_out_map,
+                          size: 16, color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -99,6 +119,38 @@ class PostCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Fullscreen, pinch-to-zoom image view (tap image in a card to open).
+class _FullscreenImage extends StatelessWidget {
+  final String url;
+  const _FullscreenImage(this.url);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.8,
+          maxScale: 5,
+          child: CachedNetworkImage(
+            imageUrl: url,
+            fit: BoxFit.contain,
+            placeholder: (c, u) =>
+                const Center(child: CircularProgressIndicator()),
+            errorWidget: (c, u, e) =>
+                const Icon(Icons.broken_image, color: Colors.white54, size: 64),
+          ),
+        ),
       ),
     );
   }

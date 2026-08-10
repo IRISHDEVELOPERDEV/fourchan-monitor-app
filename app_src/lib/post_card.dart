@@ -52,10 +52,13 @@ class PostCard extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
-                onPressed: () =>
-                    launchUrl(Uri.parse(post.url), mode: LaunchMode.externalApplication),
+                // Open our server's PERMANENT copy of the post (never 404s), not the
+                // ephemeral 4chan thread that gets deleted.
+                onPressed: () => launchUrl(
+                    Uri.parse('${Config.baseUrl}/p/${post.no}'),
+                    mode: LaunchMode.externalApplication),
                 icon: const Icon(Icons.open_in_new, size: 16),
-                label: const Text('Open thread'),
+                label: const Text('Open post'),
               ),
             ),
           ],

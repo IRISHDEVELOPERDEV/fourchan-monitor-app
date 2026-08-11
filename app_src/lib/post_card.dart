@@ -103,20 +103,36 @@ class PostCard extends StatelessWidget {
             SelectableText(post.com,
                 style: const TextStyle(fontSize: 14.5, height: 1.4)),
           ],
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              // Opens our server's PERMANENT copy (never 404s), not the 4chan thread.
-              style: TextButton.styleFrom(
-                  foregroundColor: _green,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(0, 34)),
-              onPressed: () => launchUrl(
-                  Uri.parse('${Config.baseUrl}/p/${post.no}'),
-                  mode: LaunchMode.externalApplication),
-              icon: const Icon(Icons.open_in_new, size: 15),
-              label: const Text('Open'),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // "Saved" = our permanent copy (fallback for when 4chan deleted the thread).
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey.shade500,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 34)),
+                onPressed: () => launchUrl(
+                    Uri.parse('${Config.baseUrl}/p/${post.no}'),
+                    mode: LaunchMode.externalApplication),
+                icon: const Icon(Icons.bookmark_border, size: 15),
+                label: const Text('Saved'),
+              ),
+              // "Open" = the LIVE 4chan thread (what the user wants by default).
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                    foregroundColor: _green,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 34)),
+                onPressed: () => launchUrl(
+                    Uri.parse(post.url.isNotEmpty
+                        ? post.url
+                        : '${Config.baseUrl}/p/${post.no}'),
+                    mode: LaunchMode.externalApplication),
+                icon: const Icon(Icons.open_in_new, size: 15),
+                label: const Text('Open'),
+              ),
+            ],
           ),
         ],
       ),

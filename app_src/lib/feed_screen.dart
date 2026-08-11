@@ -9,7 +9,7 @@ class FeedScreen extends StatefulWidget {
   State<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends State<FeedScreen> {
+class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   static const _green = Color(0xFF43B14B);
   final List<Post> _posts = [];
   final _scroll = ScrollController();
@@ -21,13 +21,20 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load(refresh: true);
     _scroll.addListener(() {
       if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 500) _load();
     });
-    // Live updates: pull any newer posts every 5s and slot them in at the top.
-    _live = Timer.periodic(const Duration(seconds: 5), (_) => _pollNew());
+    // Live updates: pull any newer posts every 2s and slot them in at the top.
+    _live = Timer.periodic(const Duration(seconds: 2), (_) => _pollNew());
     feedRefresh.addListener(_onFilterChanged);   // re-filter when the toggle flips
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Reopening the app shows fresh posts immediately instead of waiting a tick.
+    if (state == AppLifecycleState.resumed) _pollNew();
   }
 
   void _onFilterChanged() {
@@ -37,6 +44,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     feedRefresh.removeListener(_onFilterChanged);
     _live?.cancel();
     _scroll.dispose();

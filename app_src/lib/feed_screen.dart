@@ -13,8 +13,10 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   static const _green = Color(0xFF43B14B);
   final List<Post> _posts = [];
   final _scroll = ScrollController();
-  bool _loading = false;
+  bool _paging = false;    // loading OLDER pages (pagination) — must not block live refresh
+  bool _polling = false;   // fetching NEWEST posts (the 2s live refresh)
   bool _end = false;
+  int _autoLoads = 0;      // caps the auto-load cascade so it can never run away
   String? _error;
   Timer? _live;
 
@@ -27,6 +29,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
       if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 500) _load();
     });
     // Live updates: pull any newer posts every 2s and slot them in at the top.
+    // Runs independently of pagination so it NEVER stalls.
     _live = Timer.periodic(const Duration(seconds: 2), (_) => _pollNew());
     feedRefresh.addListener(_onFilterChanged);   // re-filter when the toggle flips
   }
@@ -39,7 +42,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
 
   void _onFilterChanged() {
     if (mounted) setState(() {});
-    _maybeAutoLoad();   // filtering can hide most posts — top up so the list scrolls
+    _autoLoads = 0;      // allow a fresh top-up for the new filter
+    _maybeAutoLoad();
   }
 
   @override
@@ -55,14 +59,21 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
       Config.keywordsOnly ? _posts.where((p) => p.isKeyword).length : _posts.length;
 
   /// When the EE/Emily filter hides most posts the visible list can be too short
-  /// to scroll (which is what triggers pagination), so fetch more automatically.
+  /// to scroll (which is what triggers pagination), so fetch a few more pages —
+  /// but capped, so it can't loop through the whole archive and block refresh.
   void _maybeAutoLoad() {
-    if (!mounted || _loading || _end) return;
-    if (_shownCount < 8) _load();
+    if (!mounted || _paging || _end) return;
+    if (_shownCount < 8 && _autoLoads < 5) {
+      _autoLoads++;
+      _load();
+    }
   }
 
+  /// Fetch the newest posts and slot any we don't have yet at the top.
+  /// Guarded ONLY by its own flag — pagination can never block it.
   Future<void> _pollNew() async {
-    if (_loading || _posts.isEmpty) return;
+    if (_polling || _posts.isEmpty) return;
+    _polling = true;
     try {
       final latest = await Api.feed(limit: 30);
       final topNo = _posts.first.no;
@@ -70,16 +81,19 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
       if (fresh.isNotEmpty && mounted) {
         setState(() => _posts.insertAll(0, fresh));
       }
-    } catch (_) {/* ignore transient poll errors */}
+    } catch (_) {/* ignore transient poll errors */} finally {
+      _polling = false;
+    }
   }
 
   Future<void> _load({bool refresh = false}) async {
-    if (_loading || (_end && !refresh)) return;
+    if (_paging || (_end && !refresh)) return;
     setState(() {
-      _loading = true;
+      _paging = true;
       if (refresh) {
         _error = null;
         _end = false;
+        _autoLoads = 0;
       }
     });
     try {
@@ -93,7 +107,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     } catch (e) {
       setState(() => _error = '$e');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _paging = false);
       _maybeAutoLoad();
     }
   }
@@ -153,7 +167,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                       final shown = Config.keywordsOnly
                           ? _posts.where((p) => p.isKeyword).toList()
                           : _posts;
-                      if (shown.isEmpty && !_loading) {
+                      if (shown.isEmpty && !_paging) {
                         return ListView(children: [
                           Padding(
                             padding: const EdgeInsets.all(40),
@@ -171,7 +185,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                         itemCount: shown.length + 1,
                         itemBuilder: (c, i) {
                           if (i >= shown.length) {
-                            return _loading
+                            return _paging
                                 ? const Padding(
                                     padding: EdgeInsets.all(16),
                                     child: Center(child: CircularProgressIndicator()))

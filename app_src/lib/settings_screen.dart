@@ -16,6 +16,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _refresh();
+    feedRefresh.addListener(_onFilterChanged); // stay in sync with the Feed's toggle
+  }
+
+  void _onFilterChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _refresh() async {
@@ -30,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    feedRefresh.removeListener(_onFilterChanged);
     _url.dispose();
     _tok.dispose();
     super.dispose();
@@ -40,6 +46,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
+        // Local feed filter — same control as the Feed's All · EE/Emily toggle.
+        // Only changes what YOU see in the app; never touches Telegram.
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          activeColor: const Color(0xFF43B14B),
+          title: const Text('Only show EE / Emily'),
+          subtitle: const Text('On = just EE / Emily mentions · Off = all posts'),
+          value: Config.keywordsOnly,
+          onChanged: (v) async {
+            await Config.setKeywordsOnly(v); // persists + updates the Feed too
+            if (mounted) setState(() {});
+          },
+        ),
+        const Divider(height: 28),
         TextField(
           controller: _url,
           decoration: const InputDecoration(
@@ -61,18 +81,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 20),
         Text(_status, style: TextStyle(color: Colors.grey.shade400)),
-        const Divider(height: 32),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(Icons.info_outline, size: 18, color: Colors.grey.shade500),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'To switch between all posts and only EE / Emily, use the '
-              'All · EE / Emily toggle at the top of the Feed.',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 13, height: 1.4),
-            ),
-          ),
-        ]),
       ]),
     );
   }

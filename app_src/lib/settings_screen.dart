@@ -10,8 +10,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late final _url = TextEditingController(text: Config.baseUrl);
   late final _tok = TextEditingController(text: Config.token);
-  bool? _verbose;
-  String _status = 'Not connected';
+  String _status = 'Checking…';
 
   @override
   void initState() {
@@ -22,16 +21,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _refresh() async {
     try {
       final h = await Api.health();
-      final v = await Api.getVerbose();
-      await Config.setKeywordsOnly(!v);   // sync feed filter to the server mode
-      setState(() {
-        _verbose = v;
-        _status = 'Connected — mode: ${h['mode']}, '
-            'keywords: ${(h['keywords'] as List).join(', ')}';
-      });
+      setState(() => _status = 'Connected — mode: ${h['mode']}, '
+          'keywords: ${(h['keywords'] as List).join(', ')}');
     } catch (e) {
       setState(() => _status = 'Not connected: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _url.dispose();
+    _tok.dispose();
+    super.dispose();
   }
 
   @override
@@ -58,21 +59,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           },
           child: const Text('Save & connect'),
         ),
-        const Divider(height: 32),
-        SwitchListTile(
-          title: const Text('Show everything'),
-          subtitle: const Text('On = all replies · Off = only EE / Emily'),
-          value: _verbose ?? false,
-          onChanged: _verbose == null
-              ? null
-              : (v) async {
-                  final nv = await Api.setVerbose(v);
-                  await Config.setKeywordsOnly(!nv);  // filter the app feed too
-                  setState(() => _verbose = nv);
-                },
-        ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         Text(_status, style: TextStyle(color: Colors.grey.shade400)),
+        const Divider(height: 32),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.info_outline, size: 18, color: Colors.grey.shade500),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'To switch between all posts and only EE / Emily, use the '
+              'All · EE / Emily toggle at the top of the Feed.',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13, height: 1.4),
+            ),
+          ),
+        ]),
       ]),
     );
   }

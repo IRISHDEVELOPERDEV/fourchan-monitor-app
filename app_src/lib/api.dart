@@ -37,6 +37,13 @@ class Config {
     await p.setString('baseUrl', baseUrl);
     await p.setString('token', token);
   }
+
+  // thebarchive.com — external permanent /b/ archive (full threads + whole history).
+  static String archiveThread(int thread, int no) => thread > 0
+      ? 'https://thebarchive.com/b/thread/$thread/#$no'
+      : 'https://thebarchive.com/b/post/$no/';
+  static String archiveSearch(String q) =>
+      'https://thebarchive.com/b/search/text/${Uri.encodeComponent(q.trim())}/';
 }
 
 class Post {

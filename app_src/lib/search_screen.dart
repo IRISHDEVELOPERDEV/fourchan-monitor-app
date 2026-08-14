@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'post_card.dart';
 
@@ -49,6 +50,23 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             IconButton(onPressed: _go, icon: const Icon(Icons.search)),
           ]),
+        ),
+        // Go beyond our archive: search the ENTIRE /b/ history on thebarchive.com.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                final q = _c.text.trim();
+                if (q.isEmpty) return;
+                launchUrl(Uri.parse(Config.archiveSearch(q)),
+                    mode: LaunchMode.externalApplication);
+              },
+              icon: const Icon(Icons.travel_explore, size: 18),
+              label: const Text('Search all of /b/ history (thebarchive)'),
+            ),
+          ),
         ),
         if (_loading) const LinearProgressIndicator(),
         if (_error != null)

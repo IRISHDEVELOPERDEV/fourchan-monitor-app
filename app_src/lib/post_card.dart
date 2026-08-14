@@ -106,17 +106,18 @@ class PostCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // "Saved" = our permanent copy (fallback for when 4chan deleted the thread).
+              // "Archive" = the full permanent thread on thebarchive.com (external /b/
+              // archive) — works after 4chan deletes it, with the whole conversation.
               TextButton.icon(
                 style: TextButton.styleFrom(
                     foregroundColor: Colors.grey.shade500,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 34)),
                 onPressed: () => launchUrl(
-                    Uri.parse('${Config.baseUrl}/p/${post.no}'),
+                    Uri.parse(Config.archiveThread(post.thread, post.no)),
                     mode: LaunchMode.externalApplication),
-                icon: const Icon(Icons.bookmark_border, size: 15),
-                label: const Text('Saved'),
+                icon: const Icon(Icons.archive_outlined, size: 15),
+                label: const Text('Archive'),
               ),
               // "Open" = the LIVE 4chan thread (what the user wants by default).
               TextButton.icon(

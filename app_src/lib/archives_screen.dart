@@ -24,10 +24,22 @@ class _ArchivesScreenState extends State<ArchivesScreen> {
   bool _searched = false;
   String? _error;
 
-  late final List<int> _years = () {
-    final y = DateTime.now().year;
-    return [for (var i = y; i >= y - 3; i--) i];
-  }();
+  List<int> _years = []; // only years that actually have data (from the server)
+
+  @override
+  void initState() {
+    super.initState();
+    _loadYears();
+    // Run an initial search so the tab shows results immediately (feels connected).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _go());
+  }
+
+  Future<void> _loadYears() async {
+    try {
+      final ys = await Api.years();
+      if (mounted) setState(() => _years = ys);
+    } catch (_) {/* leave empty -> only "All years" is offered */}
+  }
 
   Future<void> _go() async {
     FocusScope.of(context).unfocus();

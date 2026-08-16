@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'api.dart';
 import 'feed_screen.dart';
 import 'search_screen.dart';
+import 'archives_screen.dart';
 import 'settings_screen.dart';
 
 // v1: feed + search + settings + live auto-refresh (no Firebase push yet).
@@ -46,7 +47,12 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   int _i = 0;
-  final _pages = const [FeedScreen(), SearchScreen(), SettingsScreen()];
+  final _pages = const [
+    FeedScreen(),
+    SearchScreen(),
+    ArchivesScreen(),
+    SettingsScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +64,7 @@ class _HomeState extends State<Home> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dynamic_feed), label: 'Feed'),
           NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
+          NavigationDestination(icon: Icon(Icons.travel_explore), label: 'Archives'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),

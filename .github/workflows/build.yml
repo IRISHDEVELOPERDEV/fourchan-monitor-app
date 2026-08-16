@@ -31,9 +31,10 @@ jobs:
           rm -rf lib
           cp -r app_src/lib lib
           cp -f app_src/icon.png icon.png
+          cp -f app_src/google-services.json android/app/google-services.json
           rm -f test/widget_test.dart
 
-      - name: Add INTERNET permission + allow cleartext HTTP
+      - name: Add INTERNET + notifications permission, allow cleartext HTTP
         run: |
           python3 - <<'PY'
           p = 'android/app/src/main/AndroidManifest.xml'
@@ -41,6 +42,9 @@ jobs:
           if 'android.permission.INTERNET' not in s:
               s = s.replace('<application',
                             '<uses-permission android:name="android.permission.INTERNET"/>\n    <application', 1)
+          if 'POST_NOTIFICATIONS' not in s:
+              s = s.replace('<application',
+                            '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <application', 1)
           if 'usesCleartextTraffic' not in s:
               s = s.replace('<application',
                             '<application android:usesCleartextTraffic="true"', 1)
@@ -48,6 +52,41 @@ jobs:
           open(p, 'w').write(s)
           print(s)
           PY
+
+      - name: Enable Firebase (google-services Gradle plugin)
+        run: |
+          python3 - <<'PY'
+          import os, re
+          def inject(path, line, marker='com.google.gms.google-services'):
+              if not os.path.exists(path):
+                  return False
+              s = open(path).read()
+              if marker in s:
+                  return True
+              m = re.search(r'plugins\s*\{', s)
+              if not m:
+                  return False
+              close = s.find('}', m.end())   # insert at END of plugins block (order matters)
+              if close == -1:
+                  return False
+              s = s[:close] + '    ' + line + '\n' + s[close:]
+              open(path, 'w').write(s)
+              print('patched', path)
+              return True
+          # settings file: declare the plugin (apply false); app file: apply it.
+          if os.path.exists('android/settings.gradle.kts'):
+              inject('android/settings.gradle.kts',
+                     'id("com.google.gms.google-services") version "4.4.2" apply false')
+          else:
+              inject('android/settings.gradle',
+                     'id "com.google.gms.google-services" version "4.4.2" apply false')
+          if os.path.exists('android/app/build.gradle.kts'):
+              inject('android/app/build.gradle.kts', 'id("com.google.gms.google-services")')
+          else:
+              inject('android/app/build.gradle', 'id "com.google.gms.google-services"')
+          PY
+          echo "--- settings ---"; cat android/settings.gradle.kts android/settings.gradle 2>/dev/null | grep -n google-services || true
+          echo "--- app ---"; cat android/app/build.gradle.kts android/app/build.gradle 2>/dev/null | grep -n google-services || true
 
       - name: Force minSdk 23
         run: |

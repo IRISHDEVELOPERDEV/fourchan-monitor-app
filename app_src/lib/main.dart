@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'api.dart';
 import 'feed_screen.dart';
-import 'search_screen.dart';
 import 'archives_screen.dart';
 import 'settings_screen.dart';
 
@@ -47,12 +46,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   int _i = 0;
-  final _pages = const [
-    FeedScreen(),
-    SearchScreen(),
-    ArchivesScreen(),
-    SettingsScreen(),
-  ];
+  final _pages = const [FeedScreen(), ArchivesScreen(), SettingsScreen()];
 
   @override
   Widget build(BuildContext context) {
@@ -63,8 +57,7 @@ class _HomeState extends State<Home> {
         onDestinationSelected: (v) => setState(() => _i = v),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dynamic_feed), label: 'Feed'),
-          NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
-          NavigationDestination(icon: Icon(Icons.travel_explore), label: 'Archives'),
+          NavigationDestination(icon: Icon(Icons.travel_explore), label: 'Archive'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),

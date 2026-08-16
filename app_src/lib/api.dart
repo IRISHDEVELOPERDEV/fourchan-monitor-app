@@ -149,6 +149,15 @@ class Api {
     return jsonDecode(r.body)['verbose'] == true;
   }
 
+  /// Years that actually have data in our archive (newest first).
+  static Future<List<int>> years() async {
+    final r = await http.get(Uri.parse('${Config.baseUrl}/years'), headers: _h)
+        .timeout(_t);
+    if (r.statusCode != 200) return [];
+    return ((jsonDecode(r.body)['years']) as List)
+        .map((e) => (e as num).toInt()).toList();
+  }
+
   static Future<Map<String, dynamic>> health() async {
     final r = await http.get(Uri.parse('${Config.baseUrl}/health'), headers: _h).timeout(_t);
     if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');

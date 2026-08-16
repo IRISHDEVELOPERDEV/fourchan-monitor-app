@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "976117801827",
+    "project_id": "chan-3e11a",
+    "storage_bucket": "chan-3e11a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:976117801827:android:1d98f3a7ce838e6cfb2956",
+        "android_client_info": {
+          "package_name": "com.chris.fourchanmonitor.fourchan_monitor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcnIZYzqRf-Pu-LMNcRmeOpGhxTpfr_-o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

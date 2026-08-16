@@ -1,15 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'api.dart';
 import 'feed_screen.dart';
 import 'archives_screen.dart';
 import 'settings_screen.dart';
 
-// v1: feed + search + settings + live auto-refresh (no Firebase push yet).
-// Push notifications are added in v2 once the Firebase project is set up.
+/// Background/terminated push handler (must be a top-level function).
+/// Notification-payload messages are shown by the OS automatically, so this can
+/// stay empty — it just needs to exist for FCM to register the isolate.
+@pragma('vm:entry-point')
+Future<void> _fcmBackground(RemoteMessage message) async {}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Config.load();
+  await _initPush(); // best-effort; the app still works if push isn't available
   runApp(const MonitorApp());
+}
+
+/// Set up Firebase Cloud Messaging so the app gets the same EE/Emily alerts as
+/// Telegram, even when it's closed. Registers this device's token with the server.
+Future<void> _initPush() async {
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_fcmBackground);
+    final fm = FirebaseMessaging.instance;
+    await fm.requestPermission(alert: true, badge: true, sound: true);
+    final token = await fm.getToken();
+    if (token != null) await Api.registerDevice(token);
+    fm.onTokenRefresh.listen(Api.registerDevice);
+  } catch (_) {
+    // Push is optional — never let a Firebase hiccup stop the app from opening.
+  }
 }
 
 class MonitorApp extends StatelessWidget {

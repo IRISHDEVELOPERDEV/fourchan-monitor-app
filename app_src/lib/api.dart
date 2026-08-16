@@ -38,12 +38,16 @@ class Config {
     await p.setString('token', token);
   }
 
-  // thebarchive.com — external permanent /b/ archive (full threads + whole history).
+  // External permanent /b/ archives (open in browser — they block in-app fetching).
   static String archiveThread(int thread, int no) => thread > 0
       ? 'https://thebarchive.com/b/thread/$thread/#$no'
       : 'https://thebarchive.com/b/post/$no/';
-  static String archiveSearch(String q) =>
+  static String thebarchiveSearch(String q) =>
       'https://thebarchive.com/b/search/text/${Uri.encodeComponent(q.trim())}/';
+  static String archivedMoeSearch(String q) =>
+      'https://archived.moe/b/search/text/${Uri.encodeComponent(q.trim())}/';
+  static String randomArchiveSearch(String q) =>
+      'https://www.google.com/search?q=${Uri.encodeComponent('site:randomarchive.com ${q.trim()}')}';
 }
 
 class Post {
@@ -105,6 +109,29 @@ class Api {
   static Future<List<Post>> search(String q) async {
     final u = '${Config.baseUrl}/search?q=${Uri.encodeQueryComponent(q)}';
     final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
+    if (r.statusCode != 200) throw Exception('search HTTP ${r.statusCode}');
+    return ((jsonDecode(r.body)['posts']) as List)
+        .map((e) => Post.fromJson(e)).toList();
+  }
+
+  /// Search OUR archive with filters (year, media-only, sort order).
+  static Future<List<Post>> searchAdvanced({
+    String q = '',
+    int? year,
+    bool mediaOnly = false,
+    bool oldestFirst = false,
+    int limit = 200,
+  }) async {
+    final params = <String, String>{
+      'limit': '$limit',
+      'order': oldestFirst ? 'asc' : 'desc',
+    };
+    if (q.isNotEmpty) params['q'] = q;
+    if (year != null) params['year'] = '$year';
+    if (mediaOnly) params['media'] = '1';
+    final u = Uri.parse('${Config.baseUrl}/search')
+        .replace(queryParameters: params);
+    final r = await http.get(u, headers: _h).timeout(_t);
     if (r.statusCode != 200) throw Exception('search HTTP ${r.statusCode}');
     return ((jsonDecode(r.body)['posts']) as List)
         .map((e) => Post.fromJson(e)).toList();

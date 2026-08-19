@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
@@ -9,10 +10,39 @@ class PostCard extends StatelessWidget {
   const PostCard(this.post, {super.key});
 
   static const _green = Color(0xFF43B14B);
+  static const _quoteColor = Color(0xFF6AA9C9);
+  // Highlights >>post quote-links and the watched names so gossip is scannable.
+  static final RegExp _bodyPattern =
+      RegExp(r'>>\d+|\b(?:EE|Emily)\b', caseSensitive: false);
+
+  List<TextSpan> _bodySpans(String text) {
+    final spans = <TextSpan>[];
+    int last = 0;
+    for (final m in _bodyPattern.allMatches(text)) {
+      if (m.start > last) spans.add(TextSpan(text: text.substring(last, m.start)));
+      final tok = m.group(0)!;
+      spans.add(tok.startsWith('>>')
+          ? TextSpan(text: tok, style: const TextStyle(color: _quoteColor))
+          : TextSpan(
+              text: tok,
+              style: const TextStyle(color: _green, fontWeight: FontWeight.bold)));
+      last = m.end;
+    }
+    if (last < text.length) spans.add(TextSpan(text: text.substring(last)));
+    return spans;
+  }
+
+  void _copy(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: post.com));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Post copied'), duration: Duration(milliseconds: 900)));
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onLongPress: () => _copy(context),   // long-press anywhere to copy the post
+      child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -100,14 +130,29 @@ class PostCard extends StatelessWidget {
           ],
           if (post.com.isNotEmpty) ...[
             const SizedBox(height: 10),
-            SelectableText(post.com,
-                style: const TextStyle(fontSize: 14.5, height: 1.4)),
+            SelectableText.rich(
+              TextSpan(
+                style: const TextStyle(
+                    fontSize: 14.5, height: 1.4, color: Color(0xFFEAEAEA)),
+                children: _bodySpans(post.com),
+              ),
+            ),
           ],
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // "Archive" = the full permanent thread on thebarchive.com (external /b/
-              // archive) — works after 4chan deletes it, with the whole conversation.
+              // Copy the post text (also available by long-pressing the card).
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey.shade500,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 34)),
+                onPressed: () => _copy(context),
+                icon: const Icon(Icons.copy, size: 15),
+                label: const Text('Copy'),
+              ),
+              const Spacer(),
+              // "Archive" = the full permanent thread on thebarchive.com — works
+              // after 4chan deletes it, with the whole conversation.
               TextButton.icon(
                 style: TextButton.styleFrom(
                     foregroundColor: Colors.grey.shade500,
@@ -136,6 +181,7 @@ class PostCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
       ),
     );
   }

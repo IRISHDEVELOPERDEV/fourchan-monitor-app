@@ -101,25 +101,29 @@ jobs:
           dart run flutter_launcher_icons
           flutter build apk --release
 
-      - name: Rename APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk fourchan-monitor.apk
+      - name: Name the APK (branded + dated so the download is clearly the newest)
+        run: |
+          APK="X4chan-$(date -u '+%Y-%m-%d-%H%M').apk"
+          echo "APK_NAME=$APK" >> "$GITHUB_ENV"
+          cp build/app/outputs/flutter-apk/app-release.apk "$APK"
+          echo "named: $APK"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: fourchan-monitor-apk
-          path: fourchan-monitor.apk
+          name: x4chan-apk
+          path: ${{ env.APK_NAME }}
           if-no-files-found: error
 
-      # Recreate the "latest" release each build so its DATE is always current
-      # (reusing a release keeps its old date, which looks stale). Same download URL:
-      # https://github.com/IRISHDEVELOPERDEV/fourchan-monitor-app/releases/download/latest/fourchan-monitor.apk
+      # Recreate the "latest" release each build so its DATE is always current.
+      # The APK asset is named X4chan-<date>-<time>.apk so the downloaded FILE is
+      # clearly the newest build (and browsers never serve a stale cached copy).
       - name: Publish latest APK release (fresh date each build)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --repo "${{ github.repository }}" --cleanup-tag -y || true
           sleep 3
-          gh release create latest fourchan-monitor.apk \
+          gh release create latest "${{ env.APK_NAME }}" \
             --repo "${{ github.repository }}" \
             --title "X4chan APK — $(date -u '+%Y-%m-%d %H:%M UTC')" \
             --notes "Auto-built $(date -u '+%Y-%m-%d %H:%M UTC') from commit ${{ github.sha }}. Install this APK — works out of the box."

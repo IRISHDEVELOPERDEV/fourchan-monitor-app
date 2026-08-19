@@ -149,6 +149,9 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   }
 
   Widget _filterBar() {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final unselBg = dark ? const Color(0xFF17191C) : const Color(0xFFECEEF1);
+    final unselFg = Theme.of(context).colorScheme.onSurface.withOpacity(0.75);
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
       child: SizedBox(
@@ -158,9 +161,9 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
           style: ButtonStyle(
             visualDensity: VisualDensity.compact,
             backgroundColor: WidgetStateProperty.resolveWith((s) =>
-                s.contains(WidgetState.selected) ? _green : const Color(0xFF17191C)),
+                s.contains(WidgetState.selected) ? _green : unselBg),
             foregroundColor: WidgetStateProperty.resolveWith((s) =>
-                s.contains(WidgetState.selected) ? Colors.black : Colors.grey.shade300),
+                s.contains(WidgetState.selected) ? Colors.black : unselFg),
           ),
           segments: const [
             ButtonSegment(

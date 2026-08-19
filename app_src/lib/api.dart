@@ -1,18 +1,34 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Bumped whenever the feed filter changes so the Feed screen rebuilds.
 final ValueNotifier<int> feedRefresh = ValueNotifier<int>(0);
 
+/// Drives the app's light/dark/system theme (Settings updates this live).
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
+
 /// Persisted connection config (server URL + API token).
 /// Pre-filled for testing so the app works immediately on install; a saved value
 /// from Settings overrides these defaults.
 class Config {
+  // Server details are baked in (kept out of the Settings UI on purpose).
   static String baseUrl = 'http://2.24.129.131:8787';
   static String token = 'OkVPZPZzUNhe_ctMDkoOzJ_6vKKeyqwJ';
   static bool keywordsOnly = false;   // feed filter: show only EE/Emily posts
+  static ThemeMode themeMode = ThemeMode.dark;
+
+  static ThemeMode _parseTheme(String? s) => s == 'light'
+      ? ThemeMode.light
+      : s == 'system'
+          ? ThemeMode.system
+          : ThemeMode.dark;
+  static String _themeName(ThemeMode m) => m == ThemeMode.light
+      ? 'light'
+      : m == ThemeMode.system
+          ? 'system'
+          : 'dark';
 
   static Future<void> load() async {
     final p = await SharedPreferences.getInstance();
@@ -21,6 +37,8 @@ class Config {
     final t = p.getString('token');
     if (t != null && t.isNotEmpty) token = t;
     keywordsOnly = p.getBool('keywordsOnly') ?? false;
+    themeMode = _parseTheme(p.getString('themeMode'));
+    themeNotifier.value = themeMode;
   }
 
   static Future<void> setKeywordsOnly(bool v) async {
@@ -28,6 +46,13 @@ class Config {
     final p = await SharedPreferences.getInstance();
     await p.setBool('keywordsOnly', v);
     feedRefresh.value++;   // tell the Feed to re-filter
+  }
+
+  static Future<void> setThemeMode(ThemeMode m) async {
+    themeMode = m;
+    themeNotifier.value = m;   // update the app's theme live
+    final p = await SharedPreferences.getInstance();
+    await p.setString('themeMode', _themeName(m));
   }
 
   static Future<void> save(String url, String tok) async {

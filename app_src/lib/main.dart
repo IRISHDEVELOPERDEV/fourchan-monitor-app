@@ -35,28 +35,47 @@ Future<void> _initPush() async {
   }
 }
 
+const _clover = Color(0xFF43B14B); // X4chan clover green
+
+ThemeData _buildTheme(Brightness b) {
+  final dark = b == Brightness.dark;
+  final scheme = ColorScheme.fromSeed(seedColor: _clover, brightness: b);
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: scheme,
+    scaffoldBackgroundColor:
+        dark ? const Color(0xFF0E0F11) : const Color(0xFFF5F6F8),
+    appBarTheme: AppBarTheme(
+      backgroundColor: dark ? const Color(0xFF0E0F11) : Colors.white,
+      foregroundColor: dark ? Colors.white : const Color(0xFF15171A),
+      surfaceTintColor: Colors.transparent,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: dark ? Colors.white : const Color(0xFF15171A)),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: dark ? const Color(0xFF121417) : Colors.white,
+      indicatorColor: _clover.withOpacity(dark ? 0.22 : 0.16),
+    ),
+  );
+}
+
 class MonitorApp extends StatelessWidget {
   const MonitorApp({super.key});
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'X4chan',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF43B14B),   // X4chan clover green
-          brightness: Brightness.dark,
-        ),
-        scaffoldBackgroundColor: const Color(0xFF0E0F11),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0E0F11),
-          centerTitle: false,
-          titleTextStyle: TextStyle(
-              fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
-        ),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, mode, _) => MaterialApp(
+        title: 'X4chan',
+        debugShowCheckedModeBanner: false,
+        themeMode: mode,
+        theme: _buildTheme(Brightness.light),
+        darkTheme: _buildTheme(Brightness.dark),
+        home: const Home(),
       ),
-      home: const Home(),
     );
   }
 }

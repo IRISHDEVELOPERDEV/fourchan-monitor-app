@@ -40,16 +40,20 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = dark ? const Color(0xFF17191C) : Colors.white;
+    final muted = cs.onSurface.withOpacity(0.55);
     return GestureDetector(
       onLongPress: () => _copy(context),   // long-press anywhere to copy the post
       child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF17191C),
+        color: cardBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: post.isKeyword ? _green.withOpacity(0.55) : Colors.white.withOpacity(0.06),
+          color: post.isKeyword ? _green.withOpacity(0.55) : cs.outline.withOpacity(0.18),
           width: post.isKeyword ? 1.4 : 1,
         ),
       ),
@@ -71,7 +75,7 @@ class PostCard extends StatelessWidget {
                   Text(post.name,
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   Text('${post.ago} · No.${post.no}',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                      style: TextStyle(fontSize: 11, color: muted)),
                 ],
               ),
             ),
@@ -132,8 +136,7 @@ class PostCard extends StatelessWidget {
             const SizedBox(height: 10),
             SelectableText.rich(
               TextSpan(
-                style: const TextStyle(
-                    fontSize: 14.5, height: 1.4, color: Color(0xFFEAEAEA)),
+                style: TextStyle(fontSize: 14.5, height: 1.4, color: cs.onSurface),
                 children: _bodySpans(post.com),
               ),
             ),
@@ -143,7 +146,7 @@ class PostCard extends StatelessWidget {
               // Copy the post text (also available by long-pressing the card).
               TextButton.icon(
                 style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade500,
+                    foregroundColor: muted,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 34)),
                 onPressed: () => _copy(context),
@@ -155,7 +158,7 @@ class PostCard extends StatelessWidget {
               // after 4chan deletes it, with the whole conversation.
               TextButton.icon(
                 style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade500,
+                    foregroundColor: muted,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 34)),
                 onPressed: () => launchUrl(

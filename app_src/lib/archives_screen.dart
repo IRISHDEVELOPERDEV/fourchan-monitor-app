@@ -76,7 +76,7 @@ class _ArchivesScreenState extends State<ArchivesScreen> {
     final q = _c.text.trim();
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF17191C),
+      backgroundColor: (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF17191C) : Colors.white),
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Padding(
@@ -170,7 +170,7 @@ class _ArchivesScreenState extends State<ArchivesScreen> {
       value: _year,
       hint: const Text('All years'),
       underline: const SizedBox.shrink(),
-      dropdownColor: const Color(0xFF17191C),
+      dropdownColor: (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF17191C) : Colors.white),
       items: [
         const DropdownMenuItem<int?>(value: null, child: Text('All years')),
         for (final y in _years)

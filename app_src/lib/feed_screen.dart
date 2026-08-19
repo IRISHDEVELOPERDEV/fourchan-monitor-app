@@ -17,6 +17,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   bool _polling = false;   // fetching NEWEST posts (the 2s live refresh)
   bool _end = false;
   int _autoLoads = 0;      // caps the auto-load cascade so it can never run away
+  final List<Post> _pending = [];   // fresh posts held back while you're scrolled down
+  bool _showFab = false;            // scroll-to-top button appears when scrolled down
   String? _error;
   Timer? _live;
 
@@ -25,13 +27,24 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _load(refresh: true);
-    _scroll.addListener(() {
-      if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 500) _load();
-    });
+    _scroll.addListener(_onScroll);
     // Live updates: pull any newer posts every 2s and slot them in at the top.
     // Runs independently of pagination so it NEVER stalls.
     _live = Timer.periodic(const Duration(seconds: 2), (_) => _pollNew());
     feedRefresh.addListener(_onFilterChanged);   // re-filter when the toggle flips
+  }
+
+  void _onScroll() {
+    if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 500) _load();
+    final show = _scroll.offset > 600;
+    if (show != _showFab && mounted) setState(() => _showFab = show);
+    // Back near the top? merge any held-back posts in quietly.
+    if (_scroll.offset < 200 && _pending.isNotEmpty && mounted) {
+      setState(() {
+        _posts.insertAll(0, _pending);
+        _pending.clear();
+      });
+    }
   }
 
   @override
@@ -69,20 +82,43 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// Fetch the newest posts and slot any we don't have yet at the top.
+  int get _highestNo => _pending.isNotEmpty
+      ? _pending.first.no
+      : (_posts.isNotEmpty ? _posts.first.no : 0);
+
+  /// Fetch the newest posts and slot any we don't have yet in.
   /// Guarded ONLY by its own flag — pagination can never block it.
   Future<void> _pollNew() async {
     if (_polling || _posts.isEmpty) return;
     _polling = true;
     try {
       final latest = await Api.feed(limit: 30);
-      final topNo = _posts.first.no;
-      final fresh = latest.where((p) => p.no > topNo).toList();
+      final fresh = latest.where((p) => p.no > _highestNo).toList();
       if (fresh.isNotEmpty && mounted) {
-        setState(() => _posts.insertAll(0, fresh));
+        final atTop = !_scroll.hasClients || _scroll.offset < 300;
+        setState(() {
+          if (atTop) {
+            _posts.insertAll(0, fresh);    // at the top: show right away
+          } else {
+            _pending.insertAll(0, fresh);  // scrolled down: hold back + show a pill
+          }
+        });
       }
     } catch (_) {/* ignore transient poll errors */} finally {
       _polling = false;
+    }
+  }
+
+  void _showPending() {
+    if (_pending.isNotEmpty) {
+      setState(() {
+        _posts.insertAll(0, _pending);
+        _pending.clear();
+      });
+    }
+    if (_scroll.hasClients) {
+      _scroll.animateTo(0,
+          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     }
   }
 
@@ -143,15 +179,48 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     );
   }
 
+  Widget _newPostsPill() {
+    final n = _pending.length;
+    return Material(
+      color: _green,
+      elevation: 3,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: _showPending,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.arrow_upward, size: 16, color: Colors.black),
+            const SizedBox(width: 6),
+            Text('$n new post${n == 1 ? '' : 's'}',
+                style: const TextStyle(
+                    color: Colors.black, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Feed')),
+      floatingActionButton: _showFab
+          ? FloatingActionButton.small(
+              backgroundColor: _green,
+              foregroundColor: Colors.black,
+              onPressed: () => _scroll.animateTo(0,
+                  duration: const Duration(milliseconds: 300), curve: Curves.easeOut),
+              child: const Icon(Icons.arrow_upward),
+            )
+          : null,
       body: Column(
         children: [
           _filterBar(),
           Expanded(
-            child: RefreshIndicator(
+            child: Stack(children: [
+              RefreshIndicator(
               onRefresh: () => _load(refresh: true),
               child: (_posts.isEmpty && _error != null)
                   ? ListView(children: [
@@ -195,7 +264,15 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                         },
                       );
                     }),
-            ),
+              ),
+              if (_pending.isNotEmpty)
+                Positioned(
+                  top: 8,
+                  left: 0,
+                  right: 0,
+                  child: Center(child: _newPostsPill()),
+                ),
+            ]),
           ),
         ],
       ),

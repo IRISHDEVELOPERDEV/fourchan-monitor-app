@@ -122,6 +122,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ]),
+          _section('Notifications', Icons.notifications_outlined, [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              activeColor: _green,
+              title: const Text('Push alerts to this phone'),
+              subtitle:
+                  const Text('EE / Emily alerts even when the app is closed'),
+              value: Config.notificationsEnabled,
+              onChanged: (v) async {
+                await Config.setNotificationsEnabled(v);
+                final t = fcmToken;
+                if (t != null) {
+                  if (v) {
+                    await Api.registerDevice(t);
+                  } else {
+                    await Api.unregisterDevice(t);
+                  }
+                }
+                if (mounted) setState(() {});
+              },
+            ),
+          ]),
           _section('Connection', Icons.cloud_outlined, [
             Row(children: [
               Icon(Icons.circle,

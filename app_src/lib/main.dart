@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
+import 'post_detail_screen.dart';
 import 'feed_screen.dart';
 import 'archives_screen.dart';
 import 'settings_screen.dart';
@@ -46,11 +46,18 @@ Future<void> _initPush() async {
 }
 
 void _openFromMessage(RemoteMessage? m) {
-  final no = m?.data['no'];
-  if (no != null && no.isNotEmpty) {
-    launchUrl(Uri.parse('${Config.baseUrl}/p/$no'),
-        mode: LaunchMode.externalApplication);
+  final no = int.tryParse(m?.data['no'] ?? '');
+  if (no == null) return;
+  void go() {
+    final nav = navigatorKey.currentState;
+    if (nav != null) {
+      nav.push(MaterialPageRoute(builder: (_) => PostDetailScreen(no: no)));
+    } else {
+      // Cold launch from a notification — the app is still starting; retry next frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) => go());
+    }
   }
+  go();
 }
 
 const _clover = Color(0xFF43B14B); // X4chan clover green
@@ -89,6 +96,7 @@ class MonitorApp extends StatelessWidget {
       builder: (context, mode, _) => MaterialApp(
         title: 'X4chan',
         debugShowCheckedModeBanner: false,
+        navigatorKey: navigatorKey,
         themeMode: mode,
         theme: _buildTheme(Brightness.light),
         darkTheme: _buildTheme(Brightness.dark),

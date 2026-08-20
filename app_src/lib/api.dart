@@ -13,6 +13,9 @@ final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier<ThemeMode>(ThemeMod
 /// switch can register/unregister it for push.
 String? fcmToken;
 
+/// App-wide navigator so a tapped notification can open a post IN the app.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 /// Persisted connection config (server URL + API token).
 /// Pre-filled for testing so the app works immediately on install; a saved value
 /// from Settings overrides these defaults.
@@ -184,6 +187,15 @@ class Api {
         headers: {..._h, 'Content-Type': 'application/json'},
         body: jsonEncode({'verbose': v})).timeout(_t);
     return jsonDecode(r.body)['verbose'] == true;
+  }
+
+  /// Fetch a single archived post by number (for the notification deep-link).
+  static Future<Post?> post(int no) async {
+    final r = await http.get(Uri.parse('${Config.baseUrl}/post?no=$no'),
+        headers: _h).timeout(_t);
+    if (r.statusCode != 200) return null;
+    final j = jsonDecode(r.body)['post'];
+    return j == null ? null : Post.fromJson(j as Map<String, dynamic>);
   }
 
   /// Years that actually have data in our archive (newest first).

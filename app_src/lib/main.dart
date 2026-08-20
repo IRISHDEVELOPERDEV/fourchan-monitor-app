@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'feed_screen.dart';
 import 'archives_screen.dart';
@@ -28,10 +29,27 @@ Future<void> _initPush() async {
     final fm = FirebaseMessaging.instance;
     await fm.requestPermission(alert: true, badge: true, sound: true);
     final token = await fm.getToken();
-    if (token != null) await Api.registerDevice(token);
-    fm.onTokenRefresh.listen(Api.registerDevice);
+    fcmToken = token;
+    if (token != null && Config.notificationsEnabled) {
+      await Api.registerDevice(token);
+    }
+    fm.onTokenRefresh.listen((t) {
+      fcmToken = t;
+      if (Config.notificationsEnabled) Api.registerDevice(t);
+    });
+    // Tapping a notification opens the exact post it was about.
+    fm.getInitialMessage().then(_openFromMessage);
+    FirebaseMessaging.onMessageOpenedApp.listen(_openFromMessage);
   } catch (_) {
     // Push is optional — never let a Firebase hiccup stop the app from opening.
+  }
+}
+
+void _openFromMessage(RemoteMessage? m) {
+  final no = m?.data['no'];
+  if (no != null && no.isNotEmpty) {
+    launchUrl(Uri.parse('${Config.baseUrl}/p/$no'),
+        mode: LaunchMode.externalApplication);
   }
 }
 

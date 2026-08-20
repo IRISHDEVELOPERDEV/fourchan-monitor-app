@@ -9,6 +9,10 @@ final ValueNotifier<int> feedRefresh = ValueNotifier<int>(0);
 /// Drives the app's light/dark/system theme (Settings updates this live).
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
 
+/// This device's FCM token (set once push is initialised) so the Notifications
+/// switch can register/unregister it for push.
+String? fcmToken;
+
 /// Persisted connection config (server URL + API token).
 /// Pre-filled for testing so the app works immediately on install; a saved value
 /// from Settings overrides these defaults.
@@ -17,6 +21,7 @@ class Config {
   static String baseUrl = 'http://2.24.129.131:8787';
   static String token = 'OkVPZPZzUNhe_ctMDkoOzJ_6vKKeyqwJ';
   static bool keywordsOnly = false;   // feed filter: show only EE/Emily posts
+  static bool notificationsEnabled = true;  // push EE/Emily alerts to this phone
   static ThemeMode themeMode = ThemeMode.dark;
 
   static ThemeMode _parseTheme(String? s) => s == 'light'
@@ -37,8 +42,15 @@ class Config {
     final t = p.getString('token');
     if (t != null && t.isNotEmpty) token = t;
     keywordsOnly = p.getBool('keywordsOnly') ?? false;
+    notificationsEnabled = p.getBool('notificationsEnabled') ?? true;
     themeMode = _parseTheme(p.getString('themeMode'));
     themeNotifier.value = themeMode;
+  }
+
+  static Future<void> setNotificationsEnabled(bool v) async {
+    notificationsEnabled = v;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool('notificationsEnabled', v);
   }
 
   static Future<void> setKeywordsOnly(bool v) async {
@@ -194,6 +206,14 @@ class Api {
       await http.post(Uri.parse('${Config.baseUrl}/devices'),
           headers: {..._h, 'Content-Type': 'application/json'},
           body: jsonEncode({'token': fcmToken})).timeout(_t);
+    } catch (_) {/* best effort */}
+  }
+
+  static Future<void> unregisterDevice(String fcmToken) async {
+    try {
+      await http.post(Uri.parse('${Config.baseUrl}/devices'),
+          headers: {..._h, 'Content-Type': 'application/json'},
+          body: jsonEncode({'token': fcmToken, 'remove': true})).timeout(_t);
     } catch (_) {/* best effort */}
   }
 }

@@ -137,9 +137,11 @@ class Api {
   static Map<String, String> get _h => {'Authorization': 'Bearer ${Config.token}'};
   static const _t = Duration(seconds: 20);
 
-  static Future<List<Post>> feed({int? before, int limit = 50}) async {
+  static Future<List<Post>> feed(
+      {int? before, int limit = 50, bool keywordsOnly = false}) async {
     var u = '${Config.baseUrl}/feed?limit=$limit';
     if (before != null) u += '&before=$before';
+    if (keywordsOnly) u += '&keywords=1';   // full EE/Emily stream, not client-filtered
     final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
     if (r.statusCode != 200) throw Exception('feed HTTP ${r.statusCode}');
     return ((jsonDecode(r.body)['posts']) as List)

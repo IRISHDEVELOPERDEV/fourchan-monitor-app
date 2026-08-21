@@ -54,9 +54,10 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   }
 
   void _onFilterChanged() {
-    if (mounted) setState(() {});
-    _autoLoads = 0;      // allow a fresh top-up for the new filter
-    _maybeAutoLoad();
+    // The toggle changes the data SOURCE (all posts vs the full EE/Emily stream
+    // from the server), so reload from scratch instead of client-filtering.
+    _pending.clear();
+    _load(refresh: true);
   }
 
   @override
@@ -92,7 +93,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     if (_polling || _posts.isEmpty) return;
     _polling = true;
     try {
-      final latest = await Api.feed(limit: 30);
+      final latest =
+          await Api.feed(limit: 30, keywordsOnly: Config.keywordsOnly);
       final fresh = latest.where((p) => p.no > _highestNo).toList();
       if (fresh.isNotEmpty && mounted) {
         final atTop = !_scroll.hasClients || _scroll.offset < 300;
@@ -134,7 +136,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     });
     try {
       final before = (refresh || _posts.isEmpty) ? null : _posts.last.no;
-      final batch = await Api.feed(before: before);
+      final batch =
+          await Api.feed(before: before, keywordsOnly: Config.keywordsOnly);
       setState(() {
         if (refresh) _posts.clear();
         _posts.addAll(batch);
@@ -236,9 +239,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                       ),
                     ])
                   : Builder(builder: (context) {
-                      final shown = Config.keywordsOnly
-                          ? _posts.where((p) => p.isKeyword).toList()
-                          : _posts;
+                      final shown = _posts;   // server already returns the right set
                       if (shown.isEmpty && !_paging) {
                         return ListView(children: [
                           Padding(

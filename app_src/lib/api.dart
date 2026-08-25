@@ -78,6 +78,13 @@ class Config {
     await p.setString('token', token);
   }
 
+  // Opens the live 4chan thread with the quick-reply box already quoting this
+  // post (#q<no>), so you reply in your own logged-in browser session. We never
+  // post on your behalf: 4chan requires a captcha and third-party posting
+  // clients break their rules (and risk your Pass).
+  static String replyUrl(String board, int thread, int no) =>
+      'https://boards.4chan.org/${board.isEmpty ? 'b' : board}/thread/$thread#q$no';
+
   // External permanent /b/ archives (open in browser — they block in-app fetching).
   static String archiveThread(int thread, int no) => thread > 0
       ? 'https://thebarchive.com/b/thread/$thread/#$no'

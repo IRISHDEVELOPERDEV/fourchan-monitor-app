@@ -194,6 +194,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ]),
+          _section('Auto-fill replies (optional)', Icons.auto_fix_high, [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Install this one-time browser add-on and your saved replies get '
+                'typed into the 4chan reply box for you — you still read it and '
+                'press Post. Needs a browser that supports userscripts (Firefox '
+                'with Violentmonkey, or Kiwi Browser).',
+                style: TextStyle(color: _muted(context), fontSize: 12.5, height: 1.35),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.tonalIcon(
+                onPressed: () => launchUrl(
+                    Uri.parse('${Config.baseUrl}/userscript'),
+                    mode: LaunchMode.externalApplication),
+                icon: const Icon(Icons.download, size: 18),
+                label: const Text('Install the auto-fill add-on'),
+              ),
+            ),
+          ]),
           _section('Saved replies', Icons.bolt, [
             Padding(
               padding: const EdgeInsets.only(bottom: 6),

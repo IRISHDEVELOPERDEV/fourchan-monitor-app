@@ -38,6 +38,50 @@ class PostCard extends StatelessWidget {
         content: Text('Post copied'), duration: Duration(milliseconds: 900)));
   }
 
+  void _openReply(BuildContext context) => launchUrl(
+      Uri.parse(Config.replyUrl(post.board, post.thread, post.no)),
+      mode: LaunchMode.externalApplication);
+
+  /// Long-press Reply: pick one of your saved replies. It's copied to the
+  /// clipboard and the thread's reply box opens quoting this post -- you paste
+  /// and hit send yourself (the app never posts for you).
+  void _savedRepliesSheet(BuildContext context) {
+    final items = Config.savedReplies;
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: items.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 28),
+                child: Text(
+                  'No saved replies yet. Add some in Settings, then '
+                  'long-press Reply to copy one and jump straight to the reply box.',
+                  textAlign: TextAlign.center,
+                ),
+              )
+            : ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final r in items)
+                    ListTile(
+                      leading: const Icon(Icons.bolt, color: _green, size: 20),
+                      title: Text(r, maxLines: 3, overflow: TextOverflow.ellipsis),
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: r));
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text('Copied — paste it in the reply box'),
+                            duration: Duration(milliseconds: 1400)));
+                        _openReply(context);
+                      },
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -172,9 +216,8 @@ class PostCard extends StatelessWidget {
                     foregroundColor: muted,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 34)),
-                onPressed: () => launchUrl(
-                    Uri.parse(Config.replyUrl(post.board, post.thread, post.no)),
-                    mode: LaunchMode.externalApplication),
+                onPressed: () => _openReply(context),
+                onLongPress: () => _savedRepliesSheet(context),
                 icon: const Icon(Icons.reply, size: 16),
                 label: const Text('Reply'),
               ),

@@ -9,7 +9,15 @@ import 'package:webview_flutter/webview_flutter.dart';
 class ReplyBrowser extends StatefulWidget {
   final String url;
   final String? prefill;
-  const ReplyBrowser({required this.url, this.prefill, super.key});
+  final String title;
+  final bool showBack;
+  const ReplyBrowser({
+    required this.url,
+    this.prefill,
+    this.title = 'Reply',
+    this.showBack = true,
+    super.key,
+  });
 
   @override
   State<ReplyBrowser> createState() => _ReplyBrowserState();
@@ -70,7 +78,8 @@ class _ReplyBrowserState extends State<ReplyBrowser> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reply'),
+        automaticallyImplyLeading: widget.showBack,
+        title: Text(widget.title),
         actions: [
           PopupMenuButton<String>(
             onSelected: (v) {

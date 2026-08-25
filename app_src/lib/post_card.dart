@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'api.dart';
+import 'reply_browser.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
@@ -43,11 +44,11 @@ class PostCard extends StatelessWidget {
   /// your browser) drops it straight into the box. Without the userscript the
   /// text is still on your clipboard to paste.
   void _openReply(BuildContext context, {String? text}) {
-    var url = Config.replyUrl(post.board, post.thread, post.no);
-    if (text != null && text.isNotEmpty) {
-      url += '&x4text=${Uri.encodeComponent(text)}';
-    }
-    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    // Opens 4chan's real reply box inside the app, with [text] already typed in.
+    // You press Post yourself — the app never submits for you.
+    final url = Config.replyUrl(post.board, post.thread, post.no);
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ReplyBrowser(url: url, prefill: text)));
   }
 
   /// Long-press Reply: pick one of your saved replies. It's copied to the

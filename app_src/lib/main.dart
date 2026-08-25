@@ -49,12 +49,14 @@ Future<void> _initPush() async {
 void _openFromMessage(RemoteMessage? m) {
   final no = int.tryParse(m?.data['no'] ?? '');
   if (no == null) return;
+  // Cold launch from a notification: the navigator may not exist for a few
+  // frames. Retry a bounded number of times so a failure can't spin forever.
+  var tries = 0;
   void go() {
     final nav = navigatorKey.currentState;
     if (nav != null) {
       nav.push(MaterialPageRoute(builder: (_) => PostDetailScreen(no: no)));
-    } else {
-      // Cold launch from a notification — the app is still starting; retry next frame.
+    } else if (++tries < 120) {
       WidgetsBinding.instance.addPostFrameCallback((_) => go());
     }
   }

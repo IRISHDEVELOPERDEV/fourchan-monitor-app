@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -170,6 +171,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 }
                 if (mounted) setState(() {});
               },
+            ),
+          ]),
+          _section('4chan Pass', Icons.badge_outlined, [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Your Pass lives in your browser, not in this app. Log in once '
+                'below and every Reply from X4chan posts as a Pass user with no '
+                'captcha. The login stays in your browser for about a year.',
+                style: TextStyle(color: _muted(context), fontSize: 12.5, height: 1.35),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.tonalIcon(
+                onPressed: () => launchUrl(
+                    Uri.parse('https://sys.4chan.org/auth'),
+                    mode: LaunchMode.externalApplication),
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('Log in to my 4chan Pass'),
+              ),
             ),
           ]),
           _section('Saved replies', Icons.bolt, [

@@ -5,6 +5,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# A newer push supersedes an older build, so we never queue behind stale runs.
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,6 +26,19 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true            # reuse the Flutter SDK between builds
+
+      # Gradle/Android deps are the other big download; key on the pubspec so it
+      # only re-resolves when dependencies actually change.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('app_src/pubspec.yaml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Scaffold Android project
         run: flutter create --org com.chris.fourchanmonitor --platforms=android --project-name fourchan_monitor .
@@ -103,12 +121,6 @@ jobs:
 
       - name: Name the APK (branded)
         run: cp build/app/outputs/flutter-apk/app-release.apk X4chan.apk
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: x4chan-apk
-          path: X4chan.apk
-          if-no-files-found: error
 
       # Recreate the "latest" release each build so its DATE is always current.
       # Download URL (stable): https://github.com/IRISHDEVELOPERDEV/fourchan-monitor-app/releases/download/latest/X4chan.apk

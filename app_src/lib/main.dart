@@ -100,6 +100,7 @@ class MonitorApp extends StatelessWidget {
         title: 'X4chan',
         debugShowCheckedModeBanner: false,
         navigatorKey: navigatorKey,
+        restorationScopeId: 'x4chan',
         themeMode: mode,
         theme: _buildTheme(Brightness.light),
         darkTheme: _buildTheme(Brightness.dark),

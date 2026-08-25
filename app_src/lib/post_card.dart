@@ -46,9 +46,16 @@ class PostCard extends StatelessWidget {
   void _openReply(BuildContext context, {String? text}) {
     // Opens 4chan's real reply box inside the app, with [text] already typed in.
     // You press Post yourself — the app never submits for you.
-    final url = Config.replyUrl(post.board, post.thread, post.no);
-    Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => ReplyBrowser(url: url, prefill: text)));
+    final board = post.board.isEmpty ? 'b' : post.board;
+    // #p<no> jumps to the post itself; the browser then puts >>no (and your
+    // saved text) into the reply box and scrolls there.
+    final url = 'https://boards.4chan.org/$board/thread/${post.thread}#p${post.no}';
+    Navigator.restorablePush(context, replyBrowserRoute, arguments: {
+      'url': url,
+      'quoteNo': post.no,
+      'prefill': text,
+      'title': 'Reply',
+    });
   }
 
   /// Long-press Reply: pick one of your saved replies. It's copied to the

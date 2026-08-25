@@ -26,6 +26,7 @@ class Config {
   static bool keywordsOnly = false;   // feed filter: show only EE/Emily posts
   static bool notificationsEnabled = true;  // push EE/Emily alerts to this phone
   static ThemeMode themeMode = ThemeMode.dark;
+  static List<String> savedReplies = [];  // your own canned replies (copy+paste)
 
   static ThemeMode _parseTheme(String? s) => s == 'light'
       ? ThemeMode.light
@@ -46,6 +47,7 @@ class Config {
     if (t != null && t.isNotEmpty) token = t;
     keywordsOnly = p.getBool('keywordsOnly') ?? false;
     notificationsEnabled = p.getBool('notificationsEnabled') ?? true;
+    savedReplies = p.getStringList('savedReplies') ?? [];
     themeMode = _parseTheme(p.getString('themeMode'));
     themeNotifier.value = themeMode;
   }
@@ -61,6 +63,12 @@ class Config {
     final p = await SharedPreferences.getInstance();
     await p.setBool('keywordsOnly', v);
     feedRefresh.value++;   // tell the Feed to re-filter
+  }
+
+  static Future<void> setSavedReplies(List<String> v) async {
+    savedReplies = v;
+    final p = await SharedPreferences.getInstance();
+    await p.setStringList('savedReplies', v);
   }
 
   static Future<void> setThemeMode(ThemeMode m) async {

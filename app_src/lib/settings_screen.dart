@@ -73,6 +73,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _addReply() async {
+    final c = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('New saved reply'),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          maxLines: 4,
+          decoration: const InputDecoration(
+              hintText: 'Something you type often…', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, c.text.trim()),
+              child: const Text('Save')),
+        ],
+      ),
+    );
+    if (text != null && text.isNotEmpty) {
+      await Config.setSavedReplies([...Config.savedReplies, text]);
+      if (mounted) setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,6 +170,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 }
                 if (mounted) setState(() {});
               },
+            ),
+          ]),
+          _section('Saved replies', Icons.bolt, [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                'Long-press Reply on any post to copy one of these and jump '
+                'straight to the reply box for that thread.',
+                style: TextStyle(color: _muted(context), fontSize: 12.5, height: 1.35),
+              ),
+            ),
+            for (int i = 0; i < Config.savedReplies.length; i++)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: const Icon(Icons.bolt, size: 18, color: _green),
+                title: Text(Config.savedReplies[i],
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () async {
+                    final list = [...Config.savedReplies]..removeAt(i);
+                    await Config.setSavedReplies(list);
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _addReply,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add a reply'),
+              ),
             ),
           ]),
           _section('Connection', Icons.cloud_outlined, [

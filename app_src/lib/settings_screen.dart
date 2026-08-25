@@ -177,9 +177,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                'Your Pass lives in your browser, not in this app. Log in once '
-                'below and every Reply from X4chan posts as a Pass user with no '
-                'captcha. The login stays in your browser for about a year.',
+                'Tap Reply on any post, then use the menu in the top-right and '
+                'choose "Log in to 4chan Pass". Enter your token and PIN once — it '
+                'sticks, so replies post with no captcha. The button below logs in '
+                'your external browser instead.',
                 style: TextStyle(color: _muted(context), fontSize: 12.5, height: 1.35),
               ),
             ),
@@ -198,10 +199,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                'Install this one-time browser add-on and your saved replies get '
-                'typed into the 4chan reply box for you — you still read it and '
-                'press Post. Needs a browser that supports userscripts (Firefox '
-                'with Violentmonkey, or Kiwi Browser).',
+                'Auto-fill is built in: long-press Reply on a post, pick a saved '
+                'line, and it is typed into the reply box for you — you just press '
+                'Post. The add-on below is only needed if you would rather reply in '
+                'your own browser than in the app.',
                 style: TextStyle(color: _muted(context), fontSize: 12.5, height: 1.35),
               ),
             ),
@@ -212,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Uri.parse('${Config.baseUrl}/userscript'),
                     mode: LaunchMode.externalApplication),
                 icon: const Icon(Icons.download, size: 18),
-                label: const Text('Install the auto-fill add-on'),
+                label: const Text('Add-on for external browser'),
               ),
             ),
           ]),

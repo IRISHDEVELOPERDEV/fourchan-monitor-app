@@ -69,8 +69,9 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  int get _shownCount =>
-      Config.keywordsOnly ? _posts.where((p) => p.isKeyword).length : _posts.length;
+  // The server already returns the right set (all posts, or only EE/Emily),
+  // so this is simply how many we're holding.
+  int get _shownCount => _posts.length;
 
   /// When the EE/Emily filter hides most posts the visible list can be too short
   /// to scroll (which is what triggers pagination), so fetch a few more pages —
@@ -90,7 +91,13 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   /// Fetch the newest posts and slot any we don't have yet in.
   /// Guarded ONLY by its own flag — pagination can never block it.
   Future<void> _pollNew() async {
-    if (_polling || _posts.isEmpty) return;
+    if (_polling) return;
+    if (_posts.isEmpty) {
+      // Nothing loaded yet (e.g. the app opened while the server was briefly
+      // unreachable) -- retry the initial load so the feed heals by itself.
+      if (!_paging) _load(refresh: true);
+      return;
+    }
     _polling = true;
     try {
       final latest =

@@ -189,11 +189,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: FilledButton.tonalIcon(
                 // Must log in INSIDE the app's browser: it keeps its own cookies,
                 // so a Pass logged into Chrome would not apply to in-app replies.
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const ReplyBrowser(
-                          url: 'https://sys.4chan.org/auth',
-                          title: 'Log in to 4chan Pass',
-                        ))),
+                onPressed: () =>
+                    Navigator.restorablePush(context, replyBrowserRoute, arguments: {
+                  'url': 'https://sys.4chan.org/auth',
+                  'title': 'Log in to 4chan Pass',
+                }),
                 icon: const Icon(Icons.login, size: 18),
                 label: const Text('Log in to my 4chan Pass'),
               ),

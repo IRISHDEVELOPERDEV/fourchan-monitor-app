@@ -6,6 +6,7 @@ import 'post_detail_screen.dart';
 import 'feed_screen.dart';
 import 'archives_screen.dart';
 import 'reply_browser.dart';
+import 'twitch_screen.dart';
 import 'settings_screen.dart';
 
 /// Background/terminated push handler (must be a top-level function).
@@ -132,6 +133,7 @@ class _HomeState extends State<Home> {
                 showBack: false,
               )
             : const SizedBox.shrink(),
+        const TwitchScreen(),
         const SettingsScreen(),
       ];
 
@@ -149,6 +151,7 @@ class _HomeState extends State<Home> {
           NavigationDestination(icon: Icon(Icons.dynamic_feed), label: 'Feed'),
           NavigationDestination(icon: Icon(Icons.travel_explore), label: 'Archive'),
           NavigationDestination(icon: Icon(Icons.public), label: 'Browse'),
+          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Twitch'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),

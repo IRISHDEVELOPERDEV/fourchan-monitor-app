@@ -148,6 +148,35 @@ class Post {
   bool get isKeyword => matched.isNotEmpty;
 }
 
+class TwitchMsg {
+  final String text;
+  final String name;
+  final String ts;
+  final String channel;
+  TwitchMsg.fromJson(Map<String, dynamic> j)
+      : text = j['text'] ?? '',
+        name = j['name'] ?? '',
+        ts = j['ts'] ?? '',
+        channel = j['channel'] ?? '';
+
+  /// "2026-08-15 20:45" from the ISO timestamp.
+  String get when {
+    if (ts.length < 16) return ts;
+    return '${ts.substring(0, 10)} ${ts.substring(11, 16)}';
+  }
+}
+
+class TwitchChannelHit {
+  final String channel;
+  final int count;
+  final String last;
+  TwitchChannelHit.fromJson(Map<String, dynamic> j)
+      : channel = j['channel'] ?? '',
+        count = j['count'] ?? 0,
+        last = j['last'] ?? '';
+  String get lastDay => last.length >= 10 ? last.substring(0, 10) : last;
+}
+
 class Api {
   static Map<String, String> get _h => {'Authorization': 'Bearer ${Config.token}'};
   static const _t = Duration(seconds: 20);
@@ -204,6 +233,34 @@ class Api {
         headers: {..._h, 'Content-Type': 'application/json'},
         body: jsonEncode({'verbose': v})).timeout(_t);
     return jsonDecode(r.body)['verbose'] == true;
+  }
+
+  /// Which channels this user actually appears in (newest activity first).
+  static Future<List<TwitchChannelHit>> twitchUserChannels(String user) async {
+    final u = Uri.parse('${Config.baseUrl}/twitchuserchannels')
+        .replace(queryParameters: {'user': user.trim()});
+    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 60));
+    if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');
+    return (((jsonDecode(r.body) as Map<String, dynamic>)['results'] ?? []) as List)
+        .map((e) => TwitchChannelHit.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Twitch chat logs: what [user] said, optionally narrowed to one [channel].
+  /// With no channel it searches the main OTK-adjacent channels.
+  static Future<({List<TwitchMsg> messages, String? error})> twitchLogs(
+      String user, {String channel = ''}) async {
+    final params = <String, String>{'user': user.trim(), 'limit': '200'};
+    if (channel.trim().isNotEmpty) params['channel'] = channel.trim();
+    final u = Uri.parse('${Config.baseUrl}/twitchlogs')
+        .replace(queryParameters: params);
+    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 40));
+    if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');
+    final j = jsonDecode(r.body) as Map<String, dynamic>;
+    final msgs = ((j['messages'] ?? []) as List)
+        .map((e) => TwitchMsg.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return (messages: msgs, error: j['error'] as String?);
   }
 
   /// Fetch a single archived post by number (for the notification deep-link).

@@ -1,3 +1,4 @@
+import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
@@ -38,6 +39,12 @@ class _TwitchScreenState extends State<TwitchScreen> {
     _find.dispose();
     super.dispose();
   }
+
+  /// "2026-08-25" from the ISO timestamp, for the day divider.
+  String _day(TwitchMsg m) => m.ts.length >= 10 ? m.ts.substring(0, 10) : m.ts;
+
+  /// "04:01:24" — the date is carried by the divider instead.
+  String _time(TwitchMsg m) => m.ts.length >= 19 ? m.ts.substring(11, 19) : '';
 
   Color _muted(BuildContext c) =>
       Theme.of(c).colorScheme.onSurface.withOpacity(0.6);
@@ -337,7 +344,11 @@ class _TwitchScreenState extends State<TwitchScreen> {
           );
         }
         final m = rows[i - 1];
-        return InkWell(
+        // A full "2026-08-25 04:01:24" stamp on every line swallows a phone
+        // screen, so show the time only and mark the day when it changes.
+        final prev = i - 2 >= 0 ? rows[i - 2] : null;
+        final showDay = prev == null || _day(prev) != _day(m);
+        final line = InkWell(
           onLongPress: () {
             Clipboard.setData(ClipboardData(text: m.text));
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -348,12 +359,14 @@ class _TwitchScreenState extends State<TwitchScreen> {
             child: Text.rich(
               TextSpan(
                 style: TextStyle(
-                    fontSize: 13.5, height: 1.5, color: Theme.of(context).colorScheme.onSurface),
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: Theme.of(context).colorScheme.onSurface),
                 children: [
                   TextSpan(
-                    text: '${m.ts.replaceFirst('T', ' ').padRight(19).substring(0, 19)}  ',
+                    text: '${_time(m)} ',
                     style: TextStyle(
-                        fontFamily: 'monospace',
+                        fontFeatures: const [FontFeature.tabularFigures()],
                         fontSize: 11.5,
                         color: _muted(context)),
                   ),
@@ -370,6 +383,22 @@ class _TwitchScreenState extends State<TwitchScreen> {
             ),
           ),
         );
+        if (!showDay) return line;
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: Row(children: [
+              Expanded(child: Divider(color: _muted(context).withOpacity(0.25))),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text(_day(m),
+                    style: TextStyle(fontSize: 11.5, color: _muted(context))),
+              ),
+              Expanded(child: Divider(color: _muted(context).withOpacity(0.25))),
+            ]),
+          ),
+          line,
+        ]);
       },
     );
   }

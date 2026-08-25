@@ -143,31 +143,42 @@ class PostCard extends StatelessWidget {
           ],
           Row(
             children: [
-              // Copy the post text (also available by long-pressing the card).
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                    foregroundColor: muted,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 34)),
+              // Icon-only utilities (long-press the card also copies).
+              IconButton(
+                tooltip: 'Copy text',
+                visualDensity: VisualDensity.compact,
+                color: muted,
+                iconSize: 18,
                 onPressed: () => _copy(context),
-                icon: const Icon(Icons.copy, size: 15),
-                label: const Text('Copy'),
+                icon: const Icon(Icons.copy),
+              ),
+              IconButton(
+                // Full permanent thread on thebarchive.com (survives deletion).
+                tooltip: 'Permanent archive',
+                visualDensity: VisualDensity.compact,
+                color: muted,
+                iconSize: 18,
+                onPressed: () => launchUrl(
+                    Uri.parse(Config.archiveThread(post.thread, post.no)),
+                    mode: LaunchMode.externalApplication),
+                icon: const Icon(Icons.archive_outlined),
               ),
               const Spacer(),
-              // "Archive" = the full permanent thread on thebarchive.com — works
-              // after 4chan deletes it, with the whole conversation.
+              // "Reply" opens the live thread with 4chan's quick-reply box already
+              // quoting this post -- you post it yourself, in your own browser
+              // session. The app never posts for you (captcha + 4chan's rules).
               TextButton.icon(
                 style: TextButton.styleFrom(
                     foregroundColor: muted,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 34)),
                 onPressed: () => launchUrl(
-                    Uri.parse(Config.archiveThread(post.thread, post.no)),
+                    Uri.parse(Config.replyUrl(post.board, post.thread, post.no)),
                     mode: LaunchMode.externalApplication),
-                icon: const Icon(Icons.archive_outlined, size: 15),
-                label: const Text('Archive'),
+                icon: const Icon(Icons.reply, size: 16),
+                label: const Text('Reply'),
               ),
-              // "Open" = the LIVE 4chan thread (what the user wants by default).
+              // "Open" = the LIVE 4chan thread.
               TextButton.icon(
                 style: TextButton.styleFrom(
                     foregroundColor: _green,

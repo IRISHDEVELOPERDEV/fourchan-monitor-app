@@ -155,11 +155,17 @@ class TwitchMsg {
   final String channel;
   /// Twitch's own emote tag: "id:start-end,start-end/id2:start-end".
   final String emotes;
+  /// Chat badges as "set/version" pairs, e.g. "broadcaster/1,subscriber/12".
+  final String badges;
+  /// The chatter's Twitch colour, e.g. "#F272EC" (may be empty).
+  final String color;
   TwitchMsg.fromJson(Map<String, dynamic> j)
       : text = j['text'] ?? '',
         name = j['name'] ?? '',
         ts = j['ts'] ?? '',
         emotes = j['emotes'] ?? '',
+        badges = j['badges'] ?? '',
+        color = j['color'] ?? '',
         channel = j['channel'] ?? '';
 
   /// "2026-08-15 20:45" from the ISO timestamp.
@@ -167,6 +173,15 @@ class TwitchMsg {
     if (ts.length < 16) return ts;
     return '${ts.substring(0, 10)} ${ts.substring(11, 16)}';
   }
+}
+
+class TwitchMonth {
+  final int year, month;
+  final String label;   // "2026-08"
+  TwitchMonth.fromJson(Map<String, dynamic> j)
+      : year = j['year'] ?? 0,
+        month = j['month'] ?? 0,
+        label = j['label'] ?? '';
 }
 
 class TwitchChannelHit {
@@ -248,6 +263,27 @@ class Api {
     return (e as Map<String, dynamic>).map((k, v) => MapEntry(k, v as String));
   }
 
+  /// Chat badge images ("set/version" -> url) for a channel.
+  static Future<Map<String, String>> twitchBadges(String channel) async {
+    final u = Uri.parse('${Config.baseUrl}/twitchbadges')
+        .replace(queryParameters: {'channel': channel.trim()});
+    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 40));
+    if (r.statusCode != 200) return {};
+    final b = (jsonDecode(r.body) as Map<String, dynamic>)['badges'];
+    return (b as Map<String, dynamic>).map((k, v) => MapEntry(k, v as String));
+  }
+
+  /// Months that have logs for this user in this channel, newest first.
+  static Future<List<TwitchMonth>> twitchMonths(String channel, String user) async {
+    final u = Uri.parse('${Config.baseUrl}/twitchmonths')
+        .replace(queryParameters: {'channel': channel.trim(), 'user': user.trim()});
+    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 30));
+    if (r.statusCode != 200) return [];
+    return (((jsonDecode(r.body) as Map<String, dynamic>)['months'] ?? []) as List)
+        .map((e) => TwitchMonth.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Which channels this user actually appears in (newest activity first).
   static Future<List<TwitchChannelHit>> twitchUserChannels(String user) async {
     final u = Uri.parse('${Config.baseUrl}/twitchuserchannels')
@@ -262,9 +298,14 @@ class Api {
   /// Twitch chat logs: what [user] said, optionally narrowed to one [channel].
   /// With no channel it searches the main OTK-adjacent channels.
   static Future<({List<TwitchMsg> messages, String? error})> twitchLogs(
-      String user, {String channel = ''}) async {
-    final params = <String, String>{'user': user.trim(), 'limit': '200'};
+      String user, {String channel = '', String period = ''}) async {
+    final params = <String, String>{'user': user.trim(), 'limit': '500'};
     if (channel.trim().isNotEmpty) params['channel'] = channel.trim();
+    if (period.contains('-')) {
+      final p = period.split('-');
+      params['year'] = p[0];
+      params['month'] = p[1];
+    }
     final u = Uri.parse('${Config.baseUrl}/twitchlogs')
         .replace(queryParameters: params);
     final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 40));

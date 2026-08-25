@@ -5,6 +5,7 @@ import 'api.dart';
 import 'post_detail_screen.dart';
 import 'feed_screen.dart';
 import 'archives_screen.dart';
+import 'reply_browser.dart';
 import 'settings_screen.dart';
 
 /// Background/terminated push handler (must be a top-level function).
@@ -114,18 +115,37 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   int _i = 0;
-  final _pages = const [FeedScreen(), ArchivesScreen(), SettingsScreen()];
+  bool _browseOpened = false;   // build the webview only once you visit the tab
+
+  // IndexedStack keeps each tab alive, so the browser keeps its page and your
+  // Pass session instead of reloading every time you switch away and back.
+  List<Widget> get _pages => [
+        const FeedScreen(),
+        const ArchivesScreen(),
+        _browseOpened
+            ? const ReplyBrowser(
+                url: 'https://boards.4chan.org/b/',
+                title: 'Browse',
+                showBack: false,
+              )
+            : const SizedBox.shrink(),
+        const SettingsScreen(),
+      ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_i],
+      body: IndexedStack(index: _i, children: _pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _i,
-        onDestinationSelected: (v) => setState(() => _i = v),
+        onDestinationSelected: (v) => setState(() {
+          _i = v;
+          if (v == 2) _browseOpened = true;
+        }),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dynamic_feed), label: 'Feed'),
           NavigationDestination(icon: Icon(Icons.travel_explore), label: 'Archive'),
+          NavigationDestination(icon: Icon(Icons.public), label: 'Browse'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),

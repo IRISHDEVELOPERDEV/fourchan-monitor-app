@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
+import 'reply_browser.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -177,20 +178,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                'Tap Reply on any post, then use the menu in the top-right and '
-                'choose "Log in to 4chan Pass". Enter your token and PIN once — it '
-                'sticks, so replies post with no captcha. The button below logs in '
-                'your external browser instead.',
+                'Log in here once with your token and PIN. This signs in the '
+                'browser built into X4chan, which is what Reply uses — so replies '
+                'post as a Pass user with no captcha. It stays signed in.',
                 style: TextStyle(color: _muted(context), fontSize: 12.5, height: 1.35),
               ),
             ),
             Align(
               alignment: Alignment.centerLeft,
               child: FilledButton.tonalIcon(
-                onPressed: () => launchUrl(
-                    Uri.parse('https://sys.4chan.org/auth'),
-                    mode: LaunchMode.externalApplication),
-                icon: const Icon(Icons.open_in_new, size: 18),
+                // Must log in INSIDE the app's browser: it keeps its own cookies,
+                // so a Pass logged into Chrome would not apply to in-app replies.
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const ReplyBrowser(
+                          url: 'https://sys.4chan.org/auth',
+                          title: 'Log in to 4chan Pass',
+                        ))),
+                icon: const Icon(Icons.login, size: 18),
                 label: const Text('Log in to my 4chan Pass'),
               ),
             ),

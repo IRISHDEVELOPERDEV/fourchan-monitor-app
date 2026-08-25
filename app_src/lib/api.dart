@@ -153,10 +153,13 @@ class TwitchMsg {
   final String name;
   final String ts;
   final String channel;
+  /// Twitch's own emote tag: "id:start-end,start-end/id2:start-end".
+  final String emotes;
   TwitchMsg.fromJson(Map<String, dynamic> j)
       : text = j['text'] ?? '',
         name = j['name'] ?? '',
         ts = j['ts'] ?? '',
+        emotes = j['emotes'] ?? '',
         channel = j['channel'] ?? '';
 
   /// "2026-08-15 20:45" from the ISO timestamp.
@@ -233,6 +236,16 @@ class Api {
         headers: {..._h, 'Content-Type': 'application/json'},
         body: jsonEncode({'verbose': v})).timeout(_t);
     return jsonDecode(r.body)['verbose'] == true;
+  }
+
+  /// Emote name -> image URL for a channel (7TV, BTTV and FFZ, global + channel).
+  static Future<Map<String, String>> twitchEmotes(String channel) async {
+    final u = Uri.parse('${Config.baseUrl}/twitchemotes')
+        .replace(queryParameters: {'channel': channel.trim()});
+    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 40));
+    if (r.statusCode != 200) return {};
+    final e = (jsonDecode(r.body) as Map<String, dynamic>)['emotes'];
+    return (e as Map<String, dynamic>).map((k, v) => MapEntry(k, v as String));
   }
 
   /// Which channels this user actually appears in (newest activity first).

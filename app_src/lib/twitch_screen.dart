@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
+import 'emote_text.dart';
 
 /// Look up a Twitch user's chat logs in two steps: type their name to see which
 /// channels they actually appear in, then pick a channel to read what they said.
@@ -18,6 +19,7 @@ class _TwitchScreenState extends State<TwitchScreen> {
 
   List<TwitchChannelHit> _hits = [];
   List<TwitchMsg> _msgs = [];
+  Map<String, String> _emotes = {};
   String? _openChannel; // channel we're currently reading
   bool _loading = false;
   bool _searched = false;
@@ -82,6 +84,10 @@ class _TwitchScreenState extends State<TwitchScreen> {
         _msgs = r.messages;
         if (r.messages.isEmpty) _error = r.error ?? 'Nothing found there.';
       });
+      // Emotes load after the text so messages appear straight away, then the
+      // 7TV/BTTV/FFZ images fill in.
+      final em = await Api.twitchEmotes(channel);
+      if (mounted) setState(() => _emotes = em);
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Could not reach the log service.');
@@ -270,7 +276,7 @@ class _TwitchScreenState extends State<TwitchScreen> {
               ),
             ]),
             const SizedBox(height: 6),
-            SelectableText(m.text,
+            EmoteText(m, _emotes,
                 style: const TextStyle(fontSize: 14.5, height: 1.35)),
           ]),
         );

@@ -38,9 +38,17 @@ class PostCard extends StatelessWidget {
         content: Text('Post copied'), duration: Duration(milliseconds: 900)));
   }
 
-  void _openReply(BuildContext context) => launchUrl(
-      Uri.parse(Config.replyUrl(post.board, post.thread, post.no)),
-      mode: LaunchMode.externalApplication);
+  /// Opens the live thread's reply box quoting this post. If [text] is given it
+  /// rides along in the URL fragment, and the X4chan userscript (if installed in
+  /// your browser) drops it straight into the box. Without the userscript the
+  /// text is still on your clipboard to paste.
+  void _openReply(BuildContext context, {String? text}) {
+    var url = Config.replyUrl(post.board, post.thread, post.no);
+    if (text != null && text.isNotEmpty) {
+      url += '&x4text=${Uri.encodeComponent(text)}';
+    }
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
 
   /// Long-press Reply: pick one of your saved replies. It's copied to the
   /// clipboard and the thread's reply box opens quoting this post -- you paste
@@ -68,12 +76,9 @@ class PostCard extends StatelessWidget {
                       leading: const Icon(Icons.bolt, color: _green, size: 20),
                       title: Text(r, maxLines: 3, overflow: TextOverflow.ellipsis),
                       onTap: () {
-                        Clipboard.setData(ClipboardData(text: r));
+                        Clipboard.setData(ClipboardData(text: r));  // fallback
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                            content: Text('Copied — paste it in the reply box'),
-                            duration: Duration(milliseconds: 1400)));
-                        _openReply(context);
+                        _openReply(context, text: r);
                       },
                     ),
                 ],

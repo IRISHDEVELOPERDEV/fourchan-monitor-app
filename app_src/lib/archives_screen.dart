@@ -223,7 +223,7 @@ class _ArchivesScreenState extends State<ArchivesScreen> {
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
           );
         }
-        return PostCard(_results[i - 1]);
+        return PostCard(_results[i - 1], archiveMode: true);
       },
     );
   }

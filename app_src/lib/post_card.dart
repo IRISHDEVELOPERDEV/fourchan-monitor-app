@@ -8,7 +8,10 @@ import 'reply_browser.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
-  const PostCard(this.post, {super.key});
+  /// In the Archive the posts are usually long gone from 4chan, so thebarchive
+  /// becomes the main button and the live thread the secondary one.
+  final bool archiveMode;
+  const PostCard(this.post, {this.archiveMode = false, super.key});
 
   static const _green = Color(0xFF43B14B);
   static const _quoteColor = Color(0xFF6AA9C9);
@@ -209,17 +212,33 @@ class PostCard extends StatelessWidget {
                 onPressed: () => _copy(context),
                 icon: const Icon(Icons.copy),
               ),
-              IconButton(
-                // Full permanent thread on thebarchive.com (survives deletion).
-                tooltip: 'Permanent archive',
-                visualDensity: VisualDensity.compact,
-                color: muted,
-                iconSize: 18,
-                onPressed: () => launchUrl(
-                    Uri.parse(Config.archiveThread(post.thread, post.no)),
-                    mode: LaunchMode.externalApplication),
-                icon: const Icon(Icons.archive_outlined),
-              ),
+              if (!archiveMode)
+                IconButton(
+                  // Full permanent thread on thebarchive.com (survives deletion).
+                  tooltip: 'Permanent archive',
+                  visualDensity: VisualDensity.compact,
+                  color: muted,
+                  iconSize: 18,
+                  onPressed: () => launchUrl(
+                      Uri.parse(Config.archiveThread(post.thread, post.no)),
+                      mode: LaunchMode.externalApplication),
+                  icon: const Icon(Icons.archive_outlined),
+                ),
+              if (archiveMode)
+                IconButton(
+                  // In the Archive the post is usually gone from 4chan, so the
+                  // live thread becomes the secondary link instead.
+                  tooltip: 'Live 4chan thread',
+                  visualDensity: VisualDensity.compact,
+                  color: muted,
+                  iconSize: 18,
+                  onPressed: () => launchUrl(
+                      Uri.parse(post.url.isNotEmpty
+                          ? post.url
+                          : '${Config.baseUrl}/p/${post.no}'),
+                      mode: LaunchMode.externalApplication),
+                  icon: const Icon(Icons.open_in_new),
+                ),
               const Spacer(),
               // "Reply" opens the live thread with 4chan's quick-reply box already
               // quoting this post -- you post it yourself, in your own browser
@@ -234,19 +253,24 @@ class PostCard extends StatelessWidget {
                 icon: const Icon(Icons.reply, size: 16),
                 label: const Text('Reply'),
               ),
-              // "Open" = the LIVE 4chan thread.
+              // Main button: the live 4chan thread normally, but in the Archive
+              // the post is usually deleted, so it opens thebarchive instead.
               TextButton.icon(
                 style: TextButton.styleFrom(
                     foregroundColor: _green,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 34)),
                 onPressed: () => launchUrl(
-                    Uri.parse(post.url.isNotEmpty
-                        ? post.url
-                        : '${Config.baseUrl}/p/${post.no}'),
+                    Uri.parse(archiveMode
+                        ? Config.archiveThread(post.thread, post.no)
+                        : (post.url.isNotEmpty
+                            ? post.url
+                            : '${Config.baseUrl}/p/${post.no}')),
                     mode: LaunchMode.externalApplication),
-                icon: const Icon(Icons.open_in_new, size: 15),
-                label: const Text('Open'),
+                icon: Icon(
+                    archiveMode ? Icons.archive_outlined : Icons.open_in_new,
+                    size: 15),
+                label: Text(archiveMode ? 'Archive' : 'Open'),
               ),
             ],
           ),

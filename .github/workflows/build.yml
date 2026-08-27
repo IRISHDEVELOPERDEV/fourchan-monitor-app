@@ -52,6 +52,22 @@ jobs:
           cp -f app_src/google-services.json android/app/google-services.json
           rm -f test/widget_test.dart
 
+      - name: Inject the API token (kept in repo secrets, not in the source)
+        env:
+          MONITOR_API_TOKEN: ${{ secrets.MONITOR_API_TOKEN }}
+        run: |
+          if [ -z "$MONITOR_API_TOKEN" ]; then
+            echo "MONITOR_API_TOKEN secret is not set"; exit 1
+          fi
+          python3 - <<'PY'
+          import os
+          p = 'lib/api.dart'
+          s = open(p).read()
+          s = s.replace('__API_TOKEN__', os.environ['MONITOR_API_TOKEN'])
+          open(p, 'w').write(s)
+          print('token injected:', '__API_TOKEN__' not in s)
+          PY
+
       - name: Add INTERNET + notifications permission, allow cleartext HTTP
         run: |
           python3 - <<'PY'

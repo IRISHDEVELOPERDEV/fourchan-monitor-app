@@ -22,7 +22,9 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 class Config {
   // Server details are baked in (kept out of the Settings UI on purpose).
   static String baseUrl = 'http://2.24.129.131:8787';
-  static String token = 'OkVPZPZzUNhe_ctMDkoOzJ_6vKKeyqwJ';
+  // Injected at build time from the MONITOR_API_TOKEN repo secret, so the
+  // real key never sits in this public source tree.
+  static String token = '__API_TOKEN__';
   static bool keywordsOnly = false;   // feed filter: show only EE/Emily posts
   static bool notificationsEnabled = true;  // push EE/Emily alerts to this phone
   static ThemeMode themeMode = ThemeMode.dark;

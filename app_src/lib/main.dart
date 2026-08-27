@@ -105,6 +105,15 @@ class MonitorApp extends StatelessWidget {
         themeMode: mode,
         theme: _buildTheme(Brightness.light),
         darkTheme: _buildTheme(Brightness.dark),
+        // On a tablet a full-width feed stretches text into unreadably long
+        // lines, so hold the content to a comfortable column and centre it.
+        // Phones are narrower than the cap, so they're unaffected.
+        builder: (context, child) => Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 840),
+            child: child,
+          ),
+        ),
         home: const Home(),
       ),
     );

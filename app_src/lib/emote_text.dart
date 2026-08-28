@@ -100,15 +100,3 @@ List<InlineSpan> messageSpans(TwitchMsg msg, Map<String, String> emotes) {
   }
   return spans;
 }
-
-/// Renders a Twitch chat message with its emotes drawn as images.
-class EmoteText extends StatelessWidget {
-  final TwitchMsg msg;
-  final Map<String, String> emotes;
-  final TextStyle? style;
-  const EmoteText(this.msg, this.emotes, {this.style, super.key});
-
-  @override
-  Widget build(BuildContext context) =>
-      SelectableText.rich(TextSpan(style: style, children: messageSpans(msg, emotes)));
-}

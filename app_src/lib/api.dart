@@ -16,9 +16,8 @@ String? fcmToken;
 /// App-wide navigator so a tapped notification can open a post IN the app.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-/// Persisted connection config (server URL + API token).
-/// Pre-filled for testing so the app works immediately on install; a saved value
-/// from Settings overrides these defaults.
+/// App settings. The server URL and API token are fixed at build time (not
+/// editable in the UI); everything else below is remembered per device.
 class Config {
   // Server details are baked in (kept out of the Settings UI on purpose).
   static String baseUrl = 'http://2.24.129.131:8787';
@@ -43,10 +42,11 @@ class Config {
 
   static Future<void> load() async {
     final p = await SharedPreferences.getInstance();
-    final b = p.getString('baseUrl');
-    if (b != null && b.isNotEmpty) baseUrl = b;
-    final t = p.getString('token');
-    if (t != null && t.isNotEmpty) token = t;
+    // Older builds let you save a server URL and token in Settings. Those fields
+    // are gone, so a stale saved token would silently override the current one
+    // (and break the app the moment the old key is retired). Drop them.
+    await p.remove('baseUrl');
+    await p.remove('token');
     keywordsOnly = p.getBool('keywordsOnly') ?? false;
     notificationsEnabled = p.getBool('notificationsEnabled') ?? true;
     savedReplies = p.getStringList('savedReplies') ?? [];
@@ -79,21 +79,6 @@ class Config {
     final p = await SharedPreferences.getInstance();
     await p.setString('themeMode', _themeName(m));
   }
-
-  static Future<void> save(String url, String tok) async {
-    final p = await SharedPreferences.getInstance();
-    baseUrl = url.trim().replaceAll(RegExp(r'/$'), '');
-    token = tok.trim();
-    await p.setString('baseUrl', baseUrl);
-    await p.setString('token', token);
-  }
-
-  // Opens the live 4chan thread with the quick-reply box already quoting this
-  // post (#q<no>), so you reply in your own logged-in browser session. We never
-  // post on your behalf: 4chan requires a captcha and third-party posting
-  // clients break their rules (and risk your Pass).
-  static String replyUrl(String board, int thread, int no) =>
-      'https://boards.4chan.org/${board.isEmpty ? 'b' : board}/thread/$thread#q$no';
 
   // External permanent /b/ archives (open in browser — they block in-app fetching).
   static String archiveThread(int thread, int no) => thread > 0
@@ -170,11 +155,6 @@ class TwitchMsg {
         color = j['color'] ?? '',
         channel = j['channel'] ?? '';
 
-  /// "2026-08-15 20:45" from the ISO timestamp.
-  String get when {
-    if (ts.length < 16) return ts;
-    return '${ts.substring(0, 10)} ${ts.substring(11, 16)}';
-  }
 }
 
 class TwitchMonth {
@@ -212,14 +192,6 @@ class Api {
         .map((e) => Post.fromJson(e)).toList();
   }
 
-  static Future<List<Post>> search(String q) async {
-    final u = '${Config.baseUrl}/search?q=${Uri.encodeQueryComponent(q)}';
-    final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
-    if (r.statusCode != 200) throw Exception('search HTTP ${r.statusCode}');
-    return ((jsonDecode(r.body)['posts']) as List)
-        .map((e) => Post.fromJson(e)).toList();
-  }
-
   /// Search OUR archive with filters (year, media-only, sort order).
   static Future<List<Post>> searchAdvanced({
     String q = '',
@@ -241,18 +213,6 @@ class Api {
     if (r.statusCode != 200) throw Exception('search HTTP ${r.statusCode}');
     return ((jsonDecode(r.body)['posts']) as List)
         .map((e) => Post.fromJson(e)).toList();
-  }
-
-  static Future<bool> getVerbose() async {
-    final r = await http.get(Uri.parse('${Config.baseUrl}/settings'), headers: _h).timeout(_t);
-    return jsonDecode(r.body)['verbose'] == true;
-  }
-
-  static Future<bool> setVerbose(bool v) async {
-    final r = await http.post(Uri.parse('${Config.baseUrl}/settings'),
-        headers: {..._h, 'Content-Type': 'application/json'},
-        body: jsonEncode({'verbose': v})).timeout(_t);
-    return jsonDecode(r.body)['verbose'] == true;
   }
 
   /// Emote name -> image URL for a channel (7TV, BTTV and FFZ, global + channel).

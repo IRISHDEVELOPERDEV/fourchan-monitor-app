@@ -6,7 +6,6 @@ import 'post_detail_screen.dart';
 import 'feed_screen.dart';
 import 'archives_screen.dart';
 import 'media_screen.dart';
-import 'reply_browser.dart';
 import 'twitch_screen.dart';
 import 'settings_screen.dart';
 
@@ -129,23 +128,14 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   int _i = 0;
-  bool _browseOpened = false;   // build the webview only once you visit the tab
 
-  // IndexedStack keeps each tab alive, so the browser keeps its page and your
-  // Pass session instead of reloading every time you switch away and back.
-  List<Widget> get _pages => [
-        const FeedScreen(),
-        const ArchivesScreen(),
-        const MediaScreen(),
-        _browseOpened
-            ? const ReplyBrowser(
-                url: 'https://boards.4chan.org/b/',
-                title: 'Browse',
-                showBack: false,
-              )
-            : const SizedBox.shrink(),
-        const TwitchScreen(),
-        const SettingsScreen(),
+  // IndexedStack keeps each tab alive so screens don't rebuild when you switch.
+  static const _pages = [
+        FeedScreen(),
+        ArchivesScreen(),
+        MediaScreen(),
+        TwitchScreen(),
+        SettingsScreen(),
       ];
 
   @override
@@ -154,15 +144,11 @@ class _HomeState extends State<Home> {
       body: IndexedStack(index: _i, children: _pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _i,
-        onDestinationSelected: (v) => setState(() {
-          _i = v;
-          if (v == 3) _browseOpened = true;
-        }),
+        onDestinationSelected: (v) => setState(() => _i = v),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dynamic_feed), label: 'Feed'),
           NavigationDestination(icon: Icon(Icons.travel_explore), label: 'Archive'),
           NavigationDestination(icon: Icon(Icons.photo_library_outlined), label: 'Media'),
-          NavigationDestination(icon: Icon(Icons.public), label: 'Browse'),
           NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Twitch'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
         ],

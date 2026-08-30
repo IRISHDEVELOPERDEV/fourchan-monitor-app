@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'api.dart';
 import 'post_card.dart';
+import 'reply_browser.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -218,7 +219,22 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Feed')),
+      appBar: AppBar(
+        title: const Text('Feed'),
+        actions: [
+          IconButton(
+            tooltip: 'Browse 4chan',
+            icon: const Icon(Icons.public),
+            // Lives here rather than in the bottom bar: six destinations is too
+            // many for a phone, and this is the least-used one.
+            onPressed: () => Navigator.restorablePush(
+                context, replyBrowserRoute, arguments: {
+              'url': 'https://boards.4chan.org/b/',
+              'title': 'Browse',
+            }),
+          ),
+        ],
+      ),
       floatingActionButton: _showFab
           ? FloatingActionButton.small(
               backgroundColor: _green,

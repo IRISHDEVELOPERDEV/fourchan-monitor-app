@@ -91,7 +91,10 @@ class _MediaScreenState extends State<MediaScreen> {
     final unselFg = Theme.of(context).colorScheme.onSurface.withOpacity(0.75);
     // Wider screens simply fit more columns.
     final width = MediaQuery.of(context).size.width;
-    final columns = width > 700 ? 4 : (width > 480 ? 3 : 2);
+    // 4chan's thumbnails are ~125px. Size the cells to match and they look
+    // sharp at 2 KB each; stretching them larger is what looked blocky, and
+    // loading full-size files instead is what made scrolling drag.
+    final columns = (width / 128).floor().clamp(3, 8);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Media')),
@@ -185,37 +188,19 @@ class _MediaScreenState extends State<MediaScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 4chan's thumbnails are only ~125px, so stretching one across a
-            // grid cell looks blocky. Show it instantly as the placeholder and
-            // load the real image over it. Videos have no still frame, so they
-            // keep the thumbnail.
-            if (p.isImage && p.media != null)
-              CachedNetworkImage(
-                imageUrl: p.media!,
-                cacheManager: galleryCache,
-                fit: BoxFit.cover,
-                memCacheWidth: 600,        // decode small enough to stay light
-                fadeInDuration: const Duration(milliseconds: 150),
-                placeholder: (c, u) => thumb == null
-                    ? Container(color: Colors.black26)
-                    : CachedNetworkImage(
-                        imageUrl: thumb,
-                        cacheManager: galleryCache,
-                        fit: BoxFit.cover),
-                errorWidget: (c, u, e) => thumb == null
-                    ? Container(
-                        color: Colors.black26,
-                        child: const Icon(Icons.broken_image, size: 20))
-                    : CachedNetworkImage(imageUrl: thumb, fit: BoxFit.cover),
-              )
-            else if (thumb != null)
+            // One small thumbnail per tile. At this cell size it's displayed at
+            // its true resolution, so it looks sharp while staying ~2 KB — which
+            // keeps scrolling smooth. Tap through for the full-size file.
+            if (thumb != null)
               CachedNetworkImage(
                 imageUrl: thumb,
+                cacheManager: galleryCache,
                 fit: BoxFit.cover,
+                fadeInDuration: const Duration(milliseconds: 120),
                 placeholder: (c, u) => Container(color: Colors.black26),
                 errorWidget: (c, u, e) => Container(
                   color: Colors.black26,
-                  child: const Icon(Icons.broken_image, size: 20),
+                  child: const Icon(Icons.broken_image, size: 18),
                 ),
               )
             else

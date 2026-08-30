@@ -5,6 +5,7 @@ import 'api.dart';
 import 'post_detail_screen.dart';
 import 'feed_screen.dart';
 import 'archives_screen.dart';
+import 'media_screen.dart';
 import 'reply_browser.dart';
 import 'twitch_screen.dart';
 import 'settings_screen.dart';
@@ -135,6 +136,7 @@ class _HomeState extends State<Home> {
   List<Widget> get _pages => [
         const FeedScreen(),
         const ArchivesScreen(),
+        const MediaScreen(),
         _browseOpened
             ? const ReplyBrowser(
                 url: 'https://boards.4chan.org/b/',
@@ -154,11 +156,12 @@ class _HomeState extends State<Home> {
         selectedIndex: _i,
         onDestinationSelected: (v) => setState(() {
           _i = v;
-          if (v == 2) _browseOpened = true;
+          if (v == 3) _browseOpened = true;
         }),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dynamic_feed), label: 'Feed'),
           NavigationDestination(icon: Icon(Icons.travel_explore), label: 'Archive'),
+          NavigationDestination(icon: Icon(Icons.photo_library_outlined), label: 'Media'),
           NavigationDestination(icon: Icon(Icons.public), label: 'Browse'),
           NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Twitch'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),

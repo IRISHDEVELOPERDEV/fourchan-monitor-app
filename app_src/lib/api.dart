@@ -128,6 +128,15 @@ class Post {
     return '${d.inDays}d ago';
   }
 
+  /// 4chan serves a small thumbnail beside every file ("1234s.jpg"), which is
+  /// what a grid should load rather than the full-size image or video.
+  String? get thumb {
+    final m = media;
+    if (m == null || m.isEmpty) return null;
+    final dot = m.lastIndexOf('.');
+    return dot <= 0 ? m : '${m.substring(0, dot)}s.jpg';
+  }
+
   String get _e => (ext ?? '').toLowerCase();
   bool get hasMedia => media != null && media!.isNotEmpty;
   bool get isVideo => _e == '.webm' || _e == '.mp4';
@@ -182,10 +191,14 @@ class Api {
   static const _t = Duration(seconds: 20);
 
   static Future<List<Post>> feed(
-      {int? before, int limit = 50, bool keywordsOnly = false}) async {
+      {int? before,
+      int limit = 50,
+      bool keywordsOnly = false,
+      bool mediaOnly = false}) async {
     var u = '${Config.baseUrl}/feed?limit=$limit';
     if (before != null) u += '&before=$before';
     if (keywordsOnly) u += '&keywords=1';   // full EE/Emily stream, not client-filtered
+    if (mediaOnly) u += '&media=1';         // gallery: only posts with a file
     final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
     if (r.statusCode != 200) throw Exception('feed HTTP ${r.statusCode}');
     return ((jsonDecode(r.body)['posts']) as List)

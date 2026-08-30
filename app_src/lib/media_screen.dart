@@ -173,7 +173,27 @@ class _MediaScreenState extends State<MediaScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (thumb != null)
+            // 4chan's thumbnails are only ~125px, so stretching one across a
+            // grid cell looks blocky. Show it instantly as the placeholder and
+            // load the real image over it. Videos have no still frame, so they
+            // keep the thumbnail.
+            if (p.isImage && p.media != null)
+              CachedNetworkImage(
+                imageUrl: p.media!,
+                fit: BoxFit.cover,
+                memCacheWidth: 600,        // decode small enough to stay light
+                fadeInDuration: const Duration(milliseconds: 150),
+                placeholder: (c, u) => thumb == null
+                    ? Container(color: Colors.black26)
+                    : CachedNetworkImage(
+                        imageUrl: thumb, fit: BoxFit.cover),
+                errorWidget: (c, u, e) => thumb == null
+                    ? Container(
+                        color: Colors.black26,
+                        child: const Icon(Icons.broken_image, size: 20))
+                    : CachedNetworkImage(imageUrl: thumb, fit: BoxFit.cover),
+              )
+            else if (thumb != null)
               CachedNetworkImage(
                 imageUrl: thumb,
                 fit: BoxFit.cover,

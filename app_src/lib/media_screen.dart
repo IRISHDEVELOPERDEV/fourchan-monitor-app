@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart' as cache;
 import 'api.dart';
 import 'post_detail_screen.dart';
+
+/// Gallery images are cached so scrolling back doesn't re-download them, but
+/// with an explicit ceiling: at most 250 files, dropped after a week. That caps
+/// the gallery at roughly 150 MB rather than letting it grow without limit.
+final galleryCache = cache.CacheManager(
+  cache.Config(
+    'x4chan_media',
+    maxNrOfCacheObjects: 250,
+    stalePeriod: const Duration(days: 7),
+  ),
+);
 
 /// Every image and video from the watched threads, as a grid. Tapping one opens
 /// the post it came from, so you get the text and the usual actions with it.
@@ -180,13 +192,16 @@ class _MediaScreenState extends State<MediaScreen> {
             if (p.isImage && p.media != null)
               CachedNetworkImage(
                 imageUrl: p.media!,
+                cacheManager: galleryCache,
                 fit: BoxFit.cover,
                 memCacheWidth: 600,        // decode small enough to stay light
                 fadeInDuration: const Duration(milliseconds: 150),
                 placeholder: (c, u) => thumb == null
                     ? Container(color: Colors.black26)
                     : CachedNetworkImage(
-                        imageUrl: thumb, fit: BoxFit.cover),
+                        imageUrl: thumb,
+                        cacheManager: galleryCache,
+                        fit: BoxFit.cover),
                 errorWidget: (c, u, e) => thumb == null
                     ? Container(
                         color: Colors.black26,

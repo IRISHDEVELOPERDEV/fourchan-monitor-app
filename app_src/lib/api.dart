@@ -130,11 +130,17 @@ class Post {
 
   /// 4chan serves a small thumbnail beside every file ("1234s.jpg"), which is
   /// what a grid should load rather than the full-size image or video.
+  /// Routed through our own server's /thumb cache rather than 4chan directly:
+  /// the gallery can have dozens of these on screen at once, and unlike every
+  /// other image in the app they'd otherwise never touch our fast, warm,
+  /// server-side cache -- each device would cold-connect to 4chan for every
+  /// tile, every time, which is what made the gallery feel slow.
   String? get thumb {
     final m = media;
     if (m == null || m.isEmpty) return null;
     final dot = m.lastIndexOf('.');
-    return dot <= 0 ? m : '${m.substring(0, dot)}s.jpg';
+    final direct = dot <= 0 ? m : '${m.substring(0, dot)}s.jpg';
+    return '${Config.baseUrl}/thumb?u=${Uri.encodeQueryComponent(direct)}';
   }
 
   String get _e => (ext ?? '').toLowerCase();

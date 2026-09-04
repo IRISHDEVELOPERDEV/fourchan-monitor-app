@@ -229,7 +229,7 @@ class PostCard extends StatelessWidget {
                   color: muted,
                   iconSize: 18,
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ThreadScreen(post))),
+                      builder: (_) => ThreadScreen(post, archiveMode: archiveMode))),
                   icon: const Icon(Icons.forum_outlined),
                 ),
               if (!archiveMode)
@@ -263,34 +263,39 @@ class PostCard extends StatelessWidget {
               // "Reply" opens the live thread with 4chan's quick-reply box already
               // quoting this post -- you post it yourself, in your own browser
               // session. The app never posts for you (captcha + 4chan's rules).
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                    foregroundColor: muted,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 34)),
-                onPressed: () => _openReply(context),
-                onLongPress: () => _savedRepliesSheet(context),
-                icon: const Icon(Icons.reply, size: 16),
-                label: const Text('Reply'),
+              Flexible(
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                      foregroundColor: muted,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 34)),
+                  onPressed: () => _openReply(context),
+                  onLongPress: () => _savedRepliesSheet(context),
+                  icon: const Icon(Icons.reply, size: 16),
+                  label: const Text('Reply', overflow: TextOverflow.ellipsis),
+                ),
               ),
               // Main button: the live 4chan thread normally, but in the Archive
               // the post is usually deleted, so it opens thebarchive instead.
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                    foregroundColor: _green,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 34)),
-                onPressed: () => launchUrl(
-                    Uri.parse(archiveMode
-                        ? Config.archiveThread(post.thread, post.no)
-                        : (post.url.isNotEmpty
-                            ? post.url
-                            : '${Config.baseUrl}/p/${post.no}')),
-                    mode: LaunchMode.externalApplication),
-                icon: Icon(
-                    archiveMode ? Icons.archive_outlined : Icons.open_in_new,
-                    size: 15),
-                label: Text(archiveMode ? 'Archive' : 'Open'),
+              Flexible(
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                      foregroundColor: _green,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 34)),
+                  onPressed: () => launchUrl(
+                      Uri.parse(archiveMode
+                          ? Config.archiveThread(post.thread, post.no)
+                          : (post.url.isNotEmpty
+                              ? post.url
+                              : '${Config.baseUrl}/p/${post.no}')),
+                      mode: LaunchMode.externalApplication),
+                  icon: Icon(
+                      archiveMode ? Icons.archive_outlined : Icons.open_in_new,
+                      size: 15),
+                  label: Text(archiveMode ? 'Archive' : 'Open',
+                      overflow: TextOverflow.ellipsis),
+                ),
               ),
             ],
           ),

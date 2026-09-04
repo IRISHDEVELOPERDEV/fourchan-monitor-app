@@ -8,7 +8,11 @@ import 'post_card.dart';
 /// post you came from, which is outlined so it's easy to find again.
 class ThreadScreen extends StatefulWidget {
   final Post origin;
-  const ThreadScreen(this.origin, {super.key});
+  /// From the Archive, posts are usually already gone from 4chan, so every
+  /// card in this thread should link out to thebarchive too, same as the
+  /// screen this was opened from.
+  final bool archiveMode;
+  const ThreadScreen(this.origin, {this.archiveMode = false, super.key});
 
   @override
   State<ThreadScreen> createState() => _ThreadScreenState();
@@ -16,8 +20,10 @@ class ThreadScreen extends StatefulWidget {
 
 class _ThreadScreenState extends State<ThreadScreen> {
   final _originKey = GlobalKey();
+  final _scroll = ScrollController();
   List<Post>? _posts;
   String? _error;
+  int _originIndex = 0;
 
   @override
   void initState() {
@@ -25,22 +31,49 @@ class _ThreadScreenState extends State<ThreadScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     try {
       final posts = await Api.thread(widget.origin.no);
       if (!mounted) return;
-      setState(() => _posts = posts.isNotEmpty ? posts : [widget.origin]);
-      // Scroll to the post this was opened from, once its card exists.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = _originKey.currentContext;
-        if (ctx != null) {
-          Scrollable.ensureVisible(ctx,
-              alignment: 0.15, duration: const Duration(milliseconds: 300));
-        }
+      final list = posts.isNotEmpty ? posts : [widget.origin];
+      final idx = list.indexWhere((p) => p.no == widget.origin.no);
+      setState(() {
+        _posts = list;
+        _originIndex = idx < 0 ? 0 : idx;
       });
+      _scrollToOrigin();
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
     }
+  }
+
+  // ListView.builder only builds items near the viewport, so for a post deep
+  // in a long thread the GlobalKey isn't attached to anything yet and
+  // ensureVisible alone would silently do nothing. Jump to a rough estimate
+  // first (based on an average card height) so the target post actually gets
+  // built, then ensureVisible corrects to its exact position.
+  static const _estimatedItemHeight = 150.0;
+  void _scrollToOrigin() {
+    if (_originIndex <= 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_scroll.hasClients) return;
+      final estimate = (_originIndex * _estimatedItemHeight)
+          .clamp(0.0, _scroll.position.maxScrollExtent);
+      _scroll.jumpTo(estimate);
+      await Future.delayed(const Duration(milliseconds: 80));
+      if (!mounted) return;
+      final ctx = _originKey.currentContext;
+      if (ctx != null) {
+        await Scrollable.ensureVisible(ctx,
+            alignment: 0.15, duration: const Duration(milliseconds: 250));
+      }
+    });
   }
 
   @override
@@ -63,12 +96,14 @@ class _ThreadScreenState extends State<ThreadScreen> {
           : _posts == null
               ? const Center(child: CircularProgressIndicator())
               : ListView.builder(
+                  controller: _scroll,
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   itemCount: _posts!.length,
                   itemBuilder: (context, i) {
                     final p = _posts![i];
                     final isOrigin = p.no == widget.origin.no;
-                    final card = PostCard(p, highlighted: isOrigin);
+                    final card = PostCard(p,
+                        archiveMode: widget.archiveMode, highlighted: isOrigin);
                     return isOrigin ? KeyedSubtree(key: _originKey, child: card) : card;
                   },
                 ),

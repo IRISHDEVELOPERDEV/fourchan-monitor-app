@@ -211,6 +211,17 @@ class Api {
         .map((e) => Post.fromJson(e)).toList();
   }
 
+  /// Every post we've archived from one thread, oldest first -- the full
+  /// conversation around a given post, including context 4chan itself may have
+  /// since deleted (served from our own DB, not fetched live from 4chan).
+  static Future<List<Post>> thread(int postNo) async {
+    final u = '${Config.baseUrl}/thread?no=$postNo';
+    final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
+    if (r.statusCode != 200) throw Exception('thread HTTP ${r.statusCode}');
+    return ((jsonDecode(r.body)['posts']) as List)
+        .map((e) => Post.fromJson(e)).toList();
+  }
+
   /// Search OUR archive with filters (year, media-only, sort order).
   static Future<List<Post>> searchAdvanced({
     String q = '',

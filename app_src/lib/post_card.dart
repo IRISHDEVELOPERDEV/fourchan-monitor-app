@@ -5,13 +5,19 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'api.dart';
 import 'reply_browser.dart';
+import 'thread_screen.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
   /// In the Archive the posts are usually long gone from 4chan, so thebarchive
   /// becomes the main button and the live thread the secondary one.
   final bool archiveMode;
-  const PostCard(this.post, {this.archiveMode = false, super.key});
+  /// True for the one post a ThreadScreen was opened from -- gets a distinct
+  /// tint (blue, since green already means "keyword match") so it's easy to
+  /// spot again while scrolling the surrounding conversation.
+  final bool highlighted;
+  const PostCard(this.post,
+      {this.archiveMode = false, this.highlighted = false, super.key});
 
   static const _green = Color(0xFF43B14B);
   static const _quoteColor = Color(0xFF6AA9C9);
@@ -110,11 +116,13 @@ class PostCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cardBg,
+        color: highlighted ? _quoteColor.withOpacity(dark ? 0.16 : 0.10) : cardBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: post.isKeyword ? _green.withOpacity(0.55) : cs.outline.withOpacity(0.18),
-          width: post.isKeyword ? 1.4 : 1,
+          color: highlighted
+              ? _quoteColor.withOpacity(0.6)
+              : (post.isKeyword ? _green.withOpacity(0.55) : cs.outline.withOpacity(0.18)),
+          width: highlighted || post.isKeyword ? 1.4 : 1,
         ),
       ),
       child: Column(
@@ -212,6 +220,18 @@ class PostCard extends StatelessWidget {
                 onPressed: () => _copy(context),
                 icon: const Icon(Icons.copy),
               ),
+              if (!highlighted)
+                IconButton(
+                  // Full conversation around this post, in-app -- built from our
+                  // own archive, so it works even if 4chan has since deleted it.
+                  tooltip: 'View thread',
+                  visualDensity: VisualDensity.compact,
+                  color: muted,
+                  iconSize: 18,
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => ThreadScreen(post))),
+                  icon: const Icon(Icons.forum_outlined),
+                ),
               if (!archiveMode)
                 IconButton(
                   // Full permanent thread on thebarchive.com (survives deletion).

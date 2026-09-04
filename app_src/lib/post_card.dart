@@ -240,7 +240,7 @@ class PostCard extends StatelessWidget {
                   color: muted,
                   iconSize: 18,
                   onPressed: () => launchUrl(
-                      Uri.parse(Config.archiveThread(post.thread, post.no)),
+                      Uri.parse(Config.archiveThread(post.thread, post.no, board: post.board)),
                       mode: LaunchMode.externalApplication),
                   icon: const Icon(Icons.archive_outlined),
                 ),
@@ -285,7 +285,7 @@ class PostCard extends StatelessWidget {
                       minimumSize: const Size(0, 34)),
                   onPressed: () => launchUrl(
                       Uri.parse(archiveMode
-                          ? Config.archiveThread(post.thread, post.no)
+                          ? Config.archiveThread(post.thread, post.no, board: post.board)
                           : (post.url.isNotEmpty
                               ? post.url
                               : '${Config.baseUrl}/p/${post.no}')),

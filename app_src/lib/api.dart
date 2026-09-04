@@ -81,9 +81,12 @@ class Config {
   }
 
   // External permanent /b/ archives (open in browser — they block in-app fetching).
-  static String archiveThread(int thread, int no) => thread > 0
-      ? 'https://thebarchive.com/b/thread/$thread/#$no'
-      : 'https://thebarchive.com/b/post/$no/';
+  static String archiveThread(int thread, int no, {String board = 'b'}) {
+    final b = board.isEmpty ? 'b' : board;   // /trash/ is watched too now
+    return thread > 0
+        ? 'https://thebarchive.com/$b/thread/$thread/#$no'
+        : 'https://thebarchive.com/$b/post/$no/';
+  }
   static String thebarchiveSearch(String q) =>
       'https://thebarchive.com/b/search/text/${Uri.encodeComponent(q.trim())}/';
   static String archivedMoeSearch(String q) =>

@@ -20,7 +20,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 /// editable in the UI); everything else below is remembered per device.
 class Config {
   // Server details are baked in (kept out of the Settings UI on purpose).
-  static String baseUrl = 'http://2.24.129.131:8787';
+  static String baseUrl = 'http://187.7.23.6:8787';
   // Injected at build time from the MONITOR_API_TOKEN repo secret, so the
   // real key never sits in this public source tree.
   static String token = '__API_TOKEN__';

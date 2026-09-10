@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'stats_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'api.dart';
@@ -135,6 +136,7 @@ class _HomeState extends State<Home> {
         ArchivesScreen(),
         MediaScreen(),
         TwitchScreen(),
+        StatsScreen(),
         SettingsScreen(),
       ];
 
@@ -150,6 +152,7 @@ class _HomeState extends State<Home> {
           NavigationDestination(icon: Icon(Icons.travel_explore), label: 'Archive'),
           NavigationDestination(icon: Icon(Icons.photo_library_outlined), label: 'Media'),
           NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Twitch'),
+          NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Stats'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),

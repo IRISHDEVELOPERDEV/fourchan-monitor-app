@@ -175,6 +175,23 @@ class TwitchMsg {
 
 }
 
+class Stats {
+  final int days, totalPosts, totalMentions;
+  final List<({String date, int count})> perDay;
+  final List<int> perHour;   // index 0-23, UTC
+  final Map<String, int> perTerm;
+  Stats.fromJson(Map<String, dynamic> j)
+      : days = j['days'] ?? 0,
+        totalPosts = j['total_posts'] ?? 0,
+        totalMentions = j['total_mentions'] ?? 0,
+        perDay = ((j['per_day'] ?? []) as List)
+            .map((e) => (date: e['date'] as String, count: e['count'] as int))
+            .toList(),
+        perHour = ((j['per_hour'] ?? []) as List).map((e) => e as int).toList(),
+        perTerm = ((j['per_term'] ?? {}) as Map)
+            .map((k, v) => MapEntry(k as String, v as int));
+}
+
 class TwitchMonth {
   final int year, month;
   final String label;   // "2026-08"
@@ -223,6 +240,14 @@ class Api {
     if (r.statusCode != 200) throw Exception('thread HTTP ${r.statusCode}');
     return ((jsonDecode(r.body)['posts']) as List)
         .map((e) => Post.fromJson(e)).toList();
+  }
+
+  /// Mentions per day/hour and EE-vs-Emily split, over the last [days] days.
+  static Future<Stats> stats({int days = 14}) async {
+    final u = '${Config.baseUrl}/stats?days=$days';
+    final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
+    if (r.statusCode != 200) throw Exception('stats HTTP ${r.statusCode}');
+    return Stats.fromJson(jsonDecode(r.body));
   }
 
   /// Search OUR archive with filters (year, media-only, sort order).

@@ -22,20 +22,31 @@ class _StatsScreenState extends State<StatsScreen> {
     _load();
   }
 
+  // Guards against a slower stale request overwriting a newer one if ranges
+  // are switched quickly (e.g. tapping 7d then immediately 30d).
+  int _requestRange = 0;
+
   Future<void> _load() async {
-    setState(() => _loading = true);
+    final target = _range;
+    _requestRange = target;
+    setState(() {
+      _loading = true;
+      _error = null;   // clear any previous failure so a retry can actually show data
+    });
     try {
-      final s = await Api.stats(days: _range);
-      if (!mounted) return;
+      final s = await Api.stats(days: target);
+      if (!mounted || _requestRange != target) return;   // a newer request has taken over
       setState(() => _stats = s);
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (!mounted || _requestRange != target) return;
+      setState(() => _error = '$e');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && _requestRange == target) setState(() => _loading = false);
     }
   }
 
   void _setRange(int d) {
+    if (d == _range) return;   // already showing this range -- no need to refetch
     setState(() => _range = d);
     _load();
   }
@@ -207,11 +218,18 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Widget _hourChart(Color cardBg, Color muted, bool dark) {
     final s = _stats!;
-    final maxC = s.perHour.fold(0, (m, c) => c > m ? c : m).clamp(1, 1 << 30);
-    final busiest = s.perHour.indexOf(maxC);
+    // A malformed response should never crash the chart, even though our own
+    // server always sends exactly 24 entries.
+    final hours = List<int>.generate(24, (h) => h < s.perHour.length ? s.perHour[h] : 0);
+    final trueMax = hours.fold(0, (m, c) => c > m ? c : m);
+    final busiest = trueMax > 0 ? hours.indexOf(trueMax) : -1;
+    final denom = trueMax.clamp(1, 1 << 30);   // avoid divide-by-zero for bar heights only
     return _card(cardBg,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('By hour of day (UTC) · busiest: ${busiest.toString().padLeft(2, '0')}:00',
+          Text(
+              busiest < 0
+                  ? 'By hour of day (UTC) · no activity'
+                  : 'By hour of day (UTC) · busiest: ${busiest.toString().padLeft(2, '0')}:00',
               style: TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w600)),
           const SizedBox(height: 14),
           SizedBox(
@@ -224,7 +242,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 1),
                       child: Container(
-                        height: 56 * (s.perHour[h] / maxC).clamp(0.02, 1.0),
+                        height: 56 * (hours[h] / denom).clamp(0.02, 1.0),
                         decoration: BoxDecoration(
                           color: h == busiest
                               ? _green

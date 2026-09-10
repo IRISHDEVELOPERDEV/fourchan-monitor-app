@@ -185,11 +185,12 @@ class Stats {
         totalPosts = j['total_posts'] ?? 0,
         totalMentions = j['total_mentions'] ?? 0,
         perDay = ((j['per_day'] ?? []) as List)
-            .map((e) => (date: e['date'] as String, count: e['count'] as int))
+            .map((e) => (date: e['date'] as String? ?? '', count: e['count'] as int? ?? 0))
             .toList(),
-        perHour = ((j['per_hour'] ?? []) as List).map((e) => e as int).toList(),
+        perHour = ((j['per_hour'] ?? []) as List)
+            .map((e) => e as int? ?? 0).toList(),
         perTerm = ((j['per_term'] ?? {}) as Map)
-            .map((k, v) => MapEntry(k as String, v as int));
+            .map((k, v) => MapEntry(k as String, v as int? ?? 0));
 }
 
 class TwitchMonth {

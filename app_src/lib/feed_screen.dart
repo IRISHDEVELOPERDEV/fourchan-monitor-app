@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 import 'api.dart';
 import 'post_card.dart';
+import 'retry_button.dart';
 import 'reply_browser.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -11,17 +13,27 @@ class FeedScreen extends StatefulWidget {
 }
 
 class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
-  static const _green = Color(0xFF43B14B);
+  static const _green = AppColors.green;
   final List<Post> _posts = [];
   final _scroll = ScrollController();
   bool _paging = false;    // loading OLDER pages (pagination) — must not block live refresh
-  bool _polling = false;   // fetching NEWEST posts (the 2s live refresh)
+  bool _polling = false;   // fetching NEWEST posts (the live refresh)
   bool _end = false;
   int _autoLoads = 0;      // caps the auto-load cascade so it can never run away
   final List<Post> _pending = [];   // fresh posts held back while you're scrolled down
   bool _showFab = false;            // scroll-to-top button appears when scrolled down
   String? _error;
   Timer? _live;
+  // Bumped on every from-scratch reload (pull-to-refresh, filter toggle) so a
+  // slower, older request can never overwrite newer results.
+  int _gen = 0;
+
+  // Live refresh: every 20s while the app is in the foreground, backing off
+  // (up to 2 min) while the server is unreachable, paused in the background.
+  static const _pollEvery = Duration(seconds: 20);
+  static const _maxBackoff = Duration(minutes: 2);
+  Duration _nextPoll = _pollEvery;
+  bool _foreground = true;
 
   @override
   void initState() {
@@ -29,9 +41,9 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _load(refresh: true);
     _scroll.addListener(_onScroll);
-    // Live updates: pull any newer posts every 2s and slot them in at the top.
-    // Runs independently of pagination so it NEVER stalls.
-    _live = Timer.periodic(const Duration(seconds: 2), (_) => _pollNew());
+    // Live updates: pull any newer posts periodically and slot them in at the
+    // top. Runs independently of pagination so it NEVER stalls.
+    _schedulePoll();
     feedRefresh.addListener(_onFilterChanged);   // re-filter when the toggle flips
   }
 
@@ -48,10 +60,34 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _schedulePoll() {
+    _live?.cancel();
+    if (!_foreground || !mounted) return;
+    _live = Timer(_nextPoll, _tick);
+  }
+
+  Future<void> _tick() async {
+    final ok = await _pollNew();
+    if (!mounted) return;
+    final doubled = _nextPoll * 2;
+    _nextPoll = ok ? _pollEvery : (doubled > _maxBackoff ? _maxBackoff : doubled);
+    _schedulePoll();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Reopening the app shows fresh posts immediately instead of waiting a tick.
-    if (state == AppLifecycleState.resumed) _pollNew();
+    if (state == AppLifecycleState.resumed) {
+      // Reopening the app shows fresh posts immediately instead of waiting a tick.
+      _foreground = true;
+      _nextPoll = _pollEvery;
+      _tick();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      // Backgrounded: stop polling so the app doesn't burn battery and data.
+      _foreground = false;
+      _live?.cancel();
+    }
   }
 
   void _onFilterChanged() {
@@ -91,18 +127,22 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
 
   /// Fetch the newest posts and slot any we don't have yet in.
   /// Guarded ONLY by its own flag — pagination can never block it.
-  Future<void> _pollNew() async {
-    if (_polling) return;
+  /// Returns false if the server couldn't be reached (drives the back-off).
+  Future<bool> _pollNew() async {
+    if (_polling || !mounted) return true;
     if (_posts.isEmpty) {
       // Nothing loaded yet (e.g. the app opened while the server was briefly
       // unreachable) -- retry the initial load so the feed heals by itself.
-      if (!_paging) _load(refresh: true);
-      return;
+      if (_paging) return true;
+      await _load(refresh: true);
+      return _error == null;
     }
     _polling = true;
+    final gen = _gen;
     try {
       final latest =
           await Api.feed(limit: 30, keywordsOnly: Config.keywordsOnly);
+      if (!mounted || gen != _gen) return true;   // list was reloaded meanwhile
       final fresh = latest.where((p) => p.no > _highestNo).toList();
       if (fresh.isNotEmpty && mounted) {
         final atTop = !_scroll.hasClients || _scroll.offset < 300;
@@ -114,13 +154,16 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
           }
         });
       }
-    } catch (_) {/* ignore transient poll errors */} finally {
+      return true;
+    } catch (_) {
+      return false;   // transient poll error: keep what we have, back off
+    } finally {
       _polling = false;
     }
   }
 
   void _showPending() {
-    if (_pending.isNotEmpty) {
+    if (_pending.isNotEmpty && mounted) {
       setState(() {
         _posts.insertAll(0, _pending);
         _pending.clear();
@@ -133,9 +176,12 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _load({bool refresh = false}) async {
-    if (_paging || (_end && !refresh)) return;
+    // Paging is skipped while another load runs; a refresh always goes ahead
+    // (e.g. the filter was flipped mid-page) and supersedes the older load.
+    if (!mounted || (!refresh && (_paging || _end))) return;
+    final gen = refresh ? ++_gen : _gen;
+    _paging = true;
     setState(() {
-      _paging = true;
       if (refresh) {
         _error = null;
         _end = false;
@@ -146,22 +192,26 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
       final before = (refresh || _posts.isEmpty) ? null : _posts.last.no;
       final batch =
           await Api.feed(before: before, keywordsOnly: Config.keywordsOnly);
+      if (!mounted || gen != _gen) return;   // superseded or screen gone
       setState(() {
         if (refresh) _posts.clear();
         _posts.addAll(batch);
         if (batch.isEmpty) _end = true;
       });
     } catch (e) {
+      if (!mounted || gen != _gen) return;
       setState(() => _error = '$e');
     } finally {
-      if (mounted) setState(() => _paging = false);
-      _maybeAutoLoad();
+      if (mounted && gen == _gen) {
+        setState(() => _paging = false);
+        _maybeAutoLoad();
+      }
     }
   }
 
   Widget _filterBar() {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final unselBg = dark ? const Color(0xFF17191C) : const Color(0xFFECEEF1);
+    final unselBg = dark ? AppColors.cardDark : AppColors.segmentLight;
     final unselFg = Theme.of(context).colorScheme.onSurface.withOpacity(0.75);
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
@@ -255,9 +305,16 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                   ? ListView(children: [
                       Padding(
                         padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'Could not load feed:\n$_error\n\n'
-                          'Open Settings and set your server URL + API token.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Could not load feed:\n$_error\n\n'
+                              'Pull down or tap Retry to try again.',
+                            ),
+                            const SizedBox(height: 12),
+                            RetryButton(onPressed: () => _load(refresh: true)),
+                          ],
                         ),
                       ),
                     ])

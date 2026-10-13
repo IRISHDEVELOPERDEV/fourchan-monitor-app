@@ -1,73 +1,54 @@
-# 4chan Monitor — Android app (Flutter)
+# X4chan — 4chan Monitor Android app (Flutter)
 
-Companion app for the server-side monitor. Feed with inline images/video, search
-over the whole archive, a mode toggle (All vs EE/Emily), and Firebase push so
-EE/Emily alerts reach your phone even when the app is closed.
+Companion app for the server-side monitor: a live Feed (All vs EE/Emily), an
+Archive search over everything the server has saved, a Media gallery, Twitch
+chat-log lookup, Stats, and Firebase push so EE/Emily alerts reach your phone
+even when the app is closed.
 
-## What you need
-- **Flutter SDK** + **Android Studio** (with an Android device or emulator).
-- The server API token (set in `/etc/4chan-monitor.env` on the server as
-  `MONITOR_API_TOKEN`). You paste this into the app's Settings on first launch.
-- A **Firebase project** (only needed for push — the app works without it for
-  feed/search/settings).
+There is nothing to configure in the app: the server address and API token are
+built in. Settings only holds appearance, the feed filter, notifications, your
+4chan Pass login and saved replies.
 
-## 1. Create the project skeleton, then drop these files in
+## Layout
+- `app_src/` — the Flutter project (`lib/`, `pubspec.yaml`, `pubspec.lock`,
+  committed `android/` project, tests).
+- `.github/workflows/build.yml` — CI: analyze, test, build a signed release APK.
+- `apk/X4chan.apk` — a ready-to-install build.
+
+## How the build works
+- **Server address**: `Config.baseUrl` in `app_src/lib/api.dart`
+  (`https://x4chan.duckdns.org`, Caddy on the server proxying to the API).
+- **API token**: never in the source. CI passes the `MONITOR_API_TOKEN` repo
+  secret with `--dart-define=MONITOR_API_TOKEN=...`. If the server's token is
+  rotated, update the secret and rebuild — an app with an old token shows
+  "Token rejected — app needs rebuilding with the current token".
+- **Signing**: release builds are signed with the X4chan release key, from the
+  `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+  `ANDROID_KEY_PASSWORD` secrets. Without `android/key.properties` a local
+  release build falls back to the debug key.
+- **Version**: `versionName` comes from `pubspec.yaml`; the build number
+  (`versionCode`) is the CI run number, so every build installs over the last.
+- The APK is uploaded as a private workflow artifact (`X4chan-apk`, kept 7
+  days) — it is not published as a public release because it contains the token.
+
+## Building locally
 ```bash
-flutter create fourchan_monitor
-cd fourchan_monitor
-# then copy this repo's pubspec.yaml and the whole lib/ folder over the generated ones
+cd app_src
 flutter pub get
+flutter analyze
+flutter test
+flutter build apk --release --dart-define=MONITOR_API_TOKEN=<token>
+# -> build/app/outputs/flutter-apk/app-release.apk
 ```
+Flutter version is pinned in the workflow (currently 3.47.7).
 
-## 2. Allow the app to reach the server over HTTP  (REQUIRED)
-The API is `http://` (not https), and Android 9+ blocks cleartext by default.
-In `android/app/src/main/AndroidManifest.xml`, add to the `<application ...>` tag:
-```xml
-<application
-    android:usesCleartextTraffic="true"
-    ... >
-```
-(Or, better long-term: put the API behind HTTPS and skip this. Ask and I'll set
-up Caddy on the server.)
-
-## 3. Min SDK
-`video_player` + Firebase need a recent min SDK. In `android/app/build.gradle`
-(or `build.gradle.kts`), set:
-```
-minSdkVersion 23   // or: minSdk = 23
-```
-Set `applicationId` to match the package you register in Firebase, e.g.
-`com.chris.fourchanmonitor`.
-
-## 4. Firebase (for push notifications)
-1. console.firebase.google.com → your project → **Add app → Android**, using the
-   **same** `applicationId` as above.
-2. Download **`google-services.json`** → put it in `android/app/`.
-3. Add the Google Services Gradle plugin:
-   - `android/settings.gradle` (plugins block):
-     `id "com.google.gms.google-services" version "4.4.2" apply false`
-   - `android/app/build.gradle` (top plugins block):
-     `id "com.google.gms.google-services"`
-4. That's the app side. The **server** side (sending the push) uses the
-   service-account JSON — hand that to me and I'll wire it into the monitor.
-
-Notifications permission (Android 13+) is requested at runtime by the app.
-
-## 5. Run
-```bash
-flutter run          # on a connected device/emulator
-# or build an installable APK:
-flutter build apk --release   # -> build/app/outputs/flutter-apk/app-release.apk
-```
-
-## First launch
-Open **Settings**, confirm the **Server URL** (`http://2.24.129.131:8787`), paste
-the **API token**, tap **Save & connect**. The Feed and Search should populate.
-The mode switch mirrors the Telegram /all and /quiet.
+## Firebase / push
+`app_src/android/app/google-services.json` is committed; the Google Services
+Gradle plugin is applied in the committed Gradle files. The server sends the
+pushes. Android 13+ asks for the notification permission on first launch.
 
 ## Notes
-- Feed images/videos load from 4chan's CDN, so media from threads that have since
-  404'd won't display (the text + link remain). Persisting media would mean the
-  server storing image files — a later add if you want a permanent gallery.
-- Push requires steps 4 + the server-side service account. Until then, the app is
-  fully usable for feed/search/settings.
+- Feed images/videos load from 4chan's CDN, so media from threads that have
+  since 404'd won't display (the text + links remain).
+- The in-app Reply browser only navigates within 4chan (4chan.org,
+  4channel.org, 4cdn.org); other links open in your normal browser.

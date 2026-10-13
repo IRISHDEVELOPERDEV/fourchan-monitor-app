@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart' as cache;
 import 'api.dart';
+import 'retry_button.dart';
 import 'post_detail_screen.dart';
 
 /// Gallery images are cached so scrolling back doesn't re-download them, but
@@ -24,7 +26,7 @@ class MediaScreen extends StatefulWidget {
 }
 
 class _MediaScreenState extends State<MediaScreen> {
-  static const _green = Color(0xFF43B14B);
+  static const _green = AppColors.green;
   final List<Post> _posts = [];
   final _scroll = ScrollController();
   bool _loading = false;
@@ -49,8 +51,13 @@ class _MediaScreenState extends State<MediaScreen> {
     super.dispose();
   }
 
+  // Bumped by each from-scratch reload so a slower older request (e.g. from
+  // before the All / EE toggle flipped) can't overwrite newer results.
+  int _gen = 0;
+
   Future<void> _load({bool refresh = false}) async {
-    if (_loading || (_end && !refresh)) return;
+    if (!mounted || (!refresh && (_loading || _end))) return;
+    final gen = refresh ? ++_gen : _gen;
     setState(() {
       _loading = true;
       if (refresh) {
@@ -66,16 +73,16 @@ class _MediaScreenState extends State<MediaScreen> {
         mediaOnly: true,
         keywordsOnly: _keywordsOnly,
       );
-      if (!mounted) return;
+      if (!mounted || gen != _gen) return;
       setState(() {
         if (refresh) _posts.clear();
         _posts.addAll(batch);
         if (batch.isEmpty) _end = true;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted && gen == _gen) setState(() => _error = '$e');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && gen == _gen) setState(() => _loading = false);
     }
   }
 
@@ -87,7 +94,7 @@ class _MediaScreenState extends State<MediaScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final unselBg = dark ? const Color(0xFF17191C) : const Color(0xFFECEEF1);
+    final unselBg = dark ? AppColors.cardDark : AppColors.segmentLight;
     final unselFg = Theme.of(context).colorScheme.onSurface.withOpacity(0.75);
     // Wider screens simply fit more columns.
     final width = MediaQuery.of(context).size.width;
@@ -138,7 +145,11 @@ class _MediaScreenState extends State<MediaScreen> {
       return ListView(children: [
         Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('Could not load media:\n$_error', textAlign: TextAlign.center),
+          child: Column(children: [
+            Text('Could not load media:\n$_error', textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            RetryButton(onPressed: () => _load(refresh: true)),
+          ]),
         ),
       ]);
     }

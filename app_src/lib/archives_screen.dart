@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'post_card.dart';
+import 'retry_button.dart';
 
 /// In-app archive browser over OUR saved posts: look up a name and see the
 /// results (text + images + video) right here, with year / media filters.
@@ -14,7 +16,7 @@ class ArchivesScreen extends StatefulWidget {
 }
 
 class _ArchivesScreenState extends State<ArchivesScreen> {
-  static const _green = Color(0xFF43B14B);
+  static const _green = AppColors.green;
   final _c = TextEditingController(text: 'EE');
   int? _year; // null = all years
   bool _mediaOnly = false;
@@ -41,25 +43,32 @@ class _ArchivesScreenState extends State<ArchivesScreen> {
     } catch (_) {/* leave empty -> only "All years" is offered */}
   }
 
+  int _req = 0;   // guards against an older, slower search landing last
+
   Future<void> _go() async {
+    if (!mounted) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _loading = true;
       _error = null;
       _searched = true;
     });
+    final req = ++_req;
     try {
-      _results = await Api.searchAdvanced(
+      final r = await Api.searchAdvanced(
         q: _c.text.trim(),
         year: _year,
         mediaOnly: _mediaOnly,
         oldestFirst: _oldestFirst,
       );
+      if (req != _req) return;   // a newer search has taken over
+      _results = r;
     } catch (e) {
+      if (req != _req) return;
       _error = '$e';
       _results = [];
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && req == _req) setState(() => _loading = false);
     }
   }
 
@@ -76,7 +85,7 @@ class _ArchivesScreenState extends State<ArchivesScreen> {
     final q = _c.text.trim();
     showModalBottomSheet(
       context: context,
-      backgroundColor: (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF17191C) : Colors.white),
+      backgroundColor: AppColors.card(Theme.of(context).brightness == Brightness.dark),
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Padding(
@@ -170,7 +179,7 @@ class _ArchivesScreenState extends State<ArchivesScreen> {
       value: _year,
       hint: const Text('All years'),
       underline: const SizedBox.shrink(),
-      dropdownColor: (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF17191C) : Colors.white),
+      dropdownColor: AppColors.card(Theme.of(context).brightness == Brightness.dark),
       items: [
         const DropdownMenuItem<int?>(value: null, child: Text('All years')),
         for (final y in _years)
@@ -183,7 +192,14 @@ class _ArchivesScreenState extends State<ArchivesScreen> {
   Widget _body() {
     if (_error != null) {
       return ListView(children: [
-        Padding(padding: const EdgeInsets.all(24), child: Text('Error: $_error')),
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Error: $_error'),
+            const SizedBox(height: 12),
+            RetryButton(onPressed: _go),
+          ]),
+        ),
       ]);
     }
     if (!_searched) {

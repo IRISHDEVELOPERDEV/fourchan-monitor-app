@@ -20,7 +20,7 @@ built in. Settings only holds appearance, the feed filter, notifications, your
   (`https://x4chan.duckdns.org`, Caddy on the server proxying to the API).
 - **API token**: never in the source. CI passes the `MONITOR_API_TOKEN` repo
   secret with `--dart-define=MONITOR_API_TOKEN=...`. If the server's token is
-  rotated, update the secret and rebuild — an app with an old token shows
+  rotated, update the secret and rebuild. An app with an old token shows
   "Token rejected — app needs rebuilding with the current token".
 - **Signing**: release builds are signed with the X4chan release key, from the
   `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
@@ -29,7 +29,7 @@ built in. Settings only holds appearance, the feed filter, notifications, your
 - **Version**: `versionName` comes from `pubspec.yaml`; the build number
   (`versionCode`) is the CI run number, so every build installs over the last.
 - The APK is uploaded as a private workflow artifact (`X4chan-apk`, kept 7
-  days) — it is not published as a public release because it contains the token.
+  days). It is not published as a public release because it contains the token.
 
 ## Building locally
 ```bash
@@ -49,6 +49,6 @@ pushes. Android 13+ asks for the notification permission on first launch.
 
 ## Notes
 - Feed images/videos load from 4chan's CDN, so media from threads that have
-  since 404'd won't display (the text + links remain).
+  since been deleted won't display (the text and links remain).
 - The in-app Reply browser only navigates within 4chan (4chan.org,
   4channel.org, 4cdn.org); other links open in your normal browser.

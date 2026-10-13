@@ -138,15 +138,11 @@ jobs:
       - name: Name the APK (branded)
         run: cp build/app/outputs/flutter-apk/app-release.apk X4chan.apk
 
-      # Recreate the "latest" release each build so its DATE is always current.
-      # Download URL (stable): https://github.com/IRISHDEVELOPERDEV/fourchan-monitor-app/releases/download/latest/X4chan.apk
-      - name: Publish latest APK release (fresh date each build)
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release delete latest --repo "${{ github.repository }}" --cleanup-tag -y || true
-          sleep 3
-          gh release create latest X4chan.apk \
-            --repo "${{ github.repository }}" \
-            --title "X4chan APK — $(date -u '+%Y-%m-%d %H:%M UTC')" \
-            --notes "Auto-built $(date -u '+%Y-%m-%d %H:%M UTC') from commit ${{ github.sha }}. Install this APK — works out of the box."
+      # Keep the APK as a private workflow artifact (it contains the API token),
+      # instead of publishing it as a public release.
+      - name: Upload APK as private artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: X4chan-apk
+          path: X4chan.apk
+          retention-days: 7

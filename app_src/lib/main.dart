@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 import 'stats_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -34,7 +36,8 @@ Future<void> _initPush() async {
     final token = await fm.getToken();
     fcmToken = token;
     if (token != null && Config.notificationsEnabled) {
-      await Api.registerDevice(token);
+      // Don't hold the app's first frame hostage to a slow server.
+      unawaited(Api.registerDevice(token));
     }
     fm.onTokenRefresh.listen((t) {
       fcmToken = t;
@@ -65,7 +68,7 @@ void _openFromMessage(RemoteMessage? m) {
   go();
 }
 
-const _clover = Color(0xFF43B14B); // X4chan clover green
+const _clover = AppColors.green; // X4chan clover green
 
 ThemeData _buildTheme(Brightness b) {
   final dark = b == Brightness.dark;
@@ -74,19 +77,19 @@ ThemeData _buildTheme(Brightness b) {
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor:
-        dark ? const Color(0xFF0E0F11) : const Color(0xFFF5F6F8),
+        dark ? AppColors.scaffoldDark : AppColors.scaffoldLight,
     appBarTheme: AppBarTheme(
-      backgroundColor: dark ? const Color(0xFF0E0F11) : Colors.white,
-      foregroundColor: dark ? Colors.white : const Color(0xFF15171A),
+      backgroundColor: dark ? AppColors.scaffoldDark : Colors.white,
+      foregroundColor: dark ? Colors.white : AppColors.appBarFgLight,
       surfaceTintColor: Colors.transparent,
       centerTitle: false,
       titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: dark ? Colors.white : const Color(0xFF15171A)),
+          color: dark ? Colors.white : AppColors.appBarFgLight),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: dark ? const Color(0xFF121417) : Colors.white,
+      backgroundColor: dark ? AppColors.navBarDark : Colors.white,
       indicatorColor: _clover.withOpacity(dark ? 0.22 : 0.16),
     ),
   );

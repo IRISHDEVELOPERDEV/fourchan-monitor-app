@@ -1,10 +1,13 @@
-# Only the app source + workflow live here; the Flutter project is scaffolded in CI.
+# Flutter project lives in app_src/ (its own .gitignore covers build output).
 build/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 *.iml
 .idea/
-android/
 ios/
-.metadata
+# Signing material must never be committed.
+*.jks
+*.keystore
+key.properties
+/secure/

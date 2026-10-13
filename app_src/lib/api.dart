@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show SocketException, HandshakeException;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,10 +22,12 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 /// editable in the UI); everything else below is remembered per device.
 class Config {
   // Server details are baked in (kept out of the Settings UI on purpose).
-  static String baseUrl = 'http://187.7.23.6:8787';
-  // Injected at build time from the MONITOR_API_TOKEN repo secret, so the
-  // real key never sits in this public source tree.
-  static String token = '__API_TOKEN__';
+  // HTTPS via Caddy on the server (reverse-proxies to the API on :8787).
+  static String baseUrl = 'https://x4chan.duckdns.org';
+  // Injected at build time with --dart-define=MONITOR_API_TOKEN=... from the
+  // repo secret, so the real key never sits in this public source tree.
+  static String token =
+      const String.fromEnvironment('MONITOR_API_TOKEN', defaultValue: '__API_TOKEN__');
   static bool keywordsOnly = false;   // feed filter: show only EE/Emily posts
   static bool notificationsEnabled = true;  // push EE/Emily alerts to this phone
   static ThemeMode themeMode = ThemeMode.dark;
@@ -109,17 +113,17 @@ class Post {
   final String? media;
 
   Post.fromJson(Map<String, dynamic> j)
-      : no = j['no'] ?? 0,
-        board = j['board'] ?? '',
-        thread = j['thread'] ?? 0,
-        name = j['name'] ?? 'Anonymous',
-        now = j['now'] ?? '',
-        ts = j['ts'] ?? 0,
-        com = j['com'] ?? '',
-        ext = j['ext'],
-        matched = j['matched'] ?? '',
-        url = j['url'] ?? '',
-        media = j['media'];
+      : no = asInt(j['no']),
+        board = asStr(j['board']),
+        thread = asInt(j['thread']),
+        name = asStr(j['name'], 'Anonymous'),
+        now = asStr(j['now']),
+        ts = asInt(j['ts']),
+        com = asStr(j['com']),
+        ext = j['ext'] is String ? j['ext'] as String : null,
+        matched = asStr(j['matched']),
+        url = asStr(j['url']),
+        media = j['media'] is String ? j['media'] as String : null;
 
   String get ago {
     if (ts == 0) return now;
@@ -165,13 +169,13 @@ class TwitchMsg {
   /// The chatter's Twitch colour, e.g. "#F272EC" (may be empty).
   final String color;
   TwitchMsg.fromJson(Map<String, dynamic> j)
-      : text = j['text'] ?? '',
-        name = j['name'] ?? '',
-        ts = j['ts'] ?? '',
-        emotes = j['emotes'] ?? '',
-        badges = j['badges'] ?? '',
-        color = j['color'] ?? '',
-        channel = j['channel'] ?? '';
+      : text = asStr(j['text']),
+        name = asStr(j['name']),
+        ts = asStr(j['ts']),
+        emotes = asStr(j['emotes']),
+        badges = asStr(j['badges']),
+        color = asStr(j['color']),
+        channel = asStr(j['channel']);
 
 }
 
@@ -181,25 +185,25 @@ class Stats {
   final List<int> perHour;   // index 0-23, UTC
   final Map<String, int> perTerm;
   Stats.fromJson(Map<String, dynamic> j)
-      : days = j['days'] ?? 0,
-        totalPosts = j['total_posts'] ?? 0,
-        totalMentions = j['total_mentions'] ?? 0,
-        perDay = ((j['per_day'] ?? []) as List)
-            .map((e) => (date: e['date'] as String? ?? '', count: e['count'] as int? ?? 0))
+      : days = asInt(j['days']),
+        totalPosts = asInt(j['total_posts']),
+        totalMentions = asInt(j['total_mentions']),
+        perDay = asList(j['per_day'])
+            .map((e) => e is Map
+                ? (date: asStr(e['date']), count: asInt(e['count']))
+                : (date: '', count: 0))
             .toList(),
-        perHour = ((j['per_hour'] ?? []) as List)
-            .map((e) => e as int? ?? 0).toList(),
-        perTerm = ((j['per_term'] ?? {}) as Map)
-            .map((k, v) => MapEntry(k as String, v as int? ?? 0));
+        perHour = asList(j['per_hour']).map(asInt).toList(),
+        perTerm = asMap(j['per_term']).map((k, v) => MapEntry(k, asInt(v)));
 }
 
 class TwitchMonth {
   final int year, month;
   final String label;   // "2026-08"
   TwitchMonth.fromJson(Map<String, dynamic> j)
-      : year = j['year'] ?? 0,
-        month = j['month'] ?? 0,
-        label = j['label'] ?? '';
+      : year = asInt(j['year']),
+        month = asInt(j['month']),
+        label = asStr(j['label']);
 }
 
 class TwitchChannelHit {
@@ -207,49 +211,151 @@ class TwitchChannelHit {
   final int count;
   final String last;
   TwitchChannelHit.fromJson(Map<String, dynamic> j)
-      : channel = j['channel'] ?? '',
-        count = j['count'] ?? 0,
-        last = j['last'] ?? '';
+      : channel = asStr(j['channel']),
+        count = asInt(j['count']),
+        last = asStr(j['last']);
   String get lastDay => last.length >= 10 ? last.substring(0, 10) : last;
+}
+
+// ---------------------------------------------------------------------------
+// Defensive JSON helpers: a malformed or unexpected server response should
+// degrade to empty values rather than throw a type error deep inside a widget.
+// ---------------------------------------------------------------------------
+int asInt(Object? v, [int fallback = 0]) {
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v) ?? fallback;
+  return fallback;
+}
+
+String asStr(Object? v, [String fallback = '']) {
+  if (v is String) return v;
+  if (v == null) return fallback;
+  return '$v';
+}
+
+List<dynamic> asList(Object? v) => v is List ? v : const [];
+
+Map<String, dynamic> asMap(Object? v) => v is Map
+    ? v.map((k, val) => MapEntry('$k', val))
+    : <String, dynamic>{};
+
+List<Map<String, dynamic>> _maps(Object? v) =>
+    asList(v).whereType<Map>().map(asMap).toList();
+
+// ---------------------------------------------------------------------------
+// Typed API errors. toString() is the user-facing message, so screens that
+// show '$e' get a clear explanation instead of a raw exception dump.
+// ---------------------------------------------------------------------------
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+  const ApiException(this.message, {this.statusCode});
+  @override
+  String toString() => message;
+}
+
+/// 401/403: the token baked into this build is no longer accepted.
+class AuthException extends ApiException {
+  const AuthException(int code)
+      : super('Token rejected — app needs rebuilding with the current token',
+            statusCode: code);
+}
+
+/// No connection, DNS failure, TLS failure or timeout.
+class NetworkException extends ApiException {
+  const NetworkException(super.message);
+}
+
+/// The server answered, but with an error status.
+class ServerException extends ApiException {
+  const ServerException(int code)
+      : super('Server error (HTTP $code)', statusCode: code);
+}
+
+/// The server answered 200 but the body wasn't the JSON we expected.
+class BadResponseException extends ApiException {
+  const BadResponseException() : super('Unexpected response from the server');
 }
 
 class Api {
   static Map<String, String> get _h => {'Authorization': 'Bearer ${Config.token}'};
   static const _t = Duration(seconds: 20);
+  static final http.Client _client = http.Client();
+
+  /// The one place every request goes through: consistent timeout, typed
+  /// errors, and defensive JSON decoding.
+  static Future<Map<String, dynamic>> _send(
+    String path, {
+    Map<String, String>? query,
+    Duration timeout = _t,
+    Object? postJson,
+  }) async {
+    var uri = Uri.parse('${Config.baseUrl}$path');
+    if (query != null) uri = uri.replace(queryParameters: query);
+    final http.Response r;
+    try {
+      r = postJson == null
+          ? await _client.get(uri, headers: _h).timeout(timeout)
+          : await _client
+              .post(uri,
+                  headers: {..._h, 'Content-Type': 'application/json'},
+                  body: jsonEncode(postJson))
+              .timeout(timeout);
+    } on TimeoutException {
+      throw const NetworkException('Server took too long to respond');
+    } on SocketException {
+      throw const NetworkException("Can't reach the server — check your connection");
+    } on HandshakeException {
+      throw const NetworkException('Secure connection to the server failed');
+    } on http.ClientException {
+      throw const NetworkException("Can't reach the server — check your connection");
+    }
+    if (r.statusCode == 401 || r.statusCode == 403) throw AuthException(r.statusCode);
+    if (r.statusCode != 200) throw ServerException(r.statusCode);
+    try {
+      final j = jsonDecode(utf8.decode(r.bodyBytes));
+      if (j is Map) return asMap(j);
+    } catch (_) {/* fall through */}
+    throw const BadResponseException();
+  }
+
+  /// Like [_send], but optional extras (emotes, badges, years...) fall back to
+  /// [fallback] on ordinary failures. A rejected token is still surfaced.
+  static Future<T> _optional<T>(Future<T> Function() f, T fallback) async {
+    try {
+      return await f();
+    } on AuthException {
+      rethrow;
+    } on ApiException {
+      return fallback;
+    }
+  }
+
+  static List<Post> _posts(Map<String, dynamic> j) =>
+      _maps(j['posts']).map(Post.fromJson).toList();
 
   static Future<List<Post>> feed(
       {int? before,
       int limit = 50,
       bool keywordsOnly = false,
       bool mediaOnly = false}) async {
-    var u = '${Config.baseUrl}/feed?limit=$limit';
-    if (before != null) u += '&before=$before';
-    if (keywordsOnly) u += '&keywords=1';   // full EE/Emily stream, not client-filtered
-    if (mediaOnly) u += '&media=1';         // gallery: only posts with a file
-    final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
-    if (r.statusCode != 200) throw Exception('feed HTTP ${r.statusCode}');
-    return ((jsonDecode(r.body)['posts']) as List)
-        .map((e) => Post.fromJson(e)).toList();
+    final q = <String, String>{'limit': '$limit'};
+    if (before != null) q['before'] = '$before';
+    if (keywordsOnly) q['keywords'] = '1';   // full EE/Emily stream, not client-filtered
+    if (mediaOnly) q['media'] = '1';         // gallery: only posts with a file
+    return _posts(await _send('/feed', query: q));
   }
 
   /// Every post we've archived from one thread, oldest first -- the full
   /// conversation around a given post, including context 4chan itself may have
   /// since deleted (served from our own DB, not fetched live from 4chan).
-  static Future<List<Post>> thread(int postNo) async {
-    final u = '${Config.baseUrl}/thread?no=$postNo';
-    final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
-    if (r.statusCode != 200) throw Exception('thread HTTP ${r.statusCode}');
-    return ((jsonDecode(r.body)['posts']) as List)
-        .map((e) => Post.fromJson(e)).toList();
-  }
+  static Future<List<Post>> thread(int postNo) async =>
+      _posts(await _send('/thread', query: {'no': '$postNo'}));
 
   /// Mentions per day/hour and EE-vs-Emily split, over the last [days] days.
-  static Future<Stats> stats({int days = 14}) async {
-    final u = '${Config.baseUrl}/stats?days=$days';
-    final r = await http.get(Uri.parse(u), headers: _h).timeout(_t);
-    if (r.statusCode != 200) throw Exception('stats HTTP ${r.statusCode}');
-    return Stats.fromJson(jsonDecode(r.body));
-  }
+  static Future<Stats> stats({int days = 14}) async =>
+      Stats.fromJson(await _send('/stats', query: {'days': '$days'}));
 
   /// Search OUR archive with filters (year, media-only, sort order).
   static Future<List<Post>> searchAdvanced({
@@ -266,54 +372,42 @@ class Api {
     if (q.isNotEmpty) params['q'] = q;
     if (year != null) params['year'] = '$year';
     if (mediaOnly) params['media'] = '1';
-    final u = Uri.parse('${Config.baseUrl}/search')
-        .replace(queryParameters: params);
-    final r = await http.get(u, headers: _h).timeout(_t);
-    if (r.statusCode != 200) throw Exception('search HTTP ${r.statusCode}');
-    return ((jsonDecode(r.body)['posts']) as List)
-        .map((e) => Post.fromJson(e)).toList();
+    return _posts(await _send('/search', query: params));
   }
+
+  static Map<String, String> _stringMap(Object? v) => asMap(v).map(
+      (k, val) => MapEntry(k, asStr(val)))..removeWhere((k, val) => val.isEmpty);
 
   /// Emote name -> image URL for a channel (7TV, BTTV and FFZ, global + channel).
-  static Future<Map<String, String>> twitchEmotes(String channel) async {
-    final u = Uri.parse('${Config.baseUrl}/twitchemotes')
-        .replace(queryParameters: {'channel': channel.trim()});
-    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 40));
-    if (r.statusCode != 200) return {};
-    final e = (jsonDecode(r.body) as Map<String, dynamic>)['emotes'];
-    return (e as Map<String, dynamic>).map((k, v) => MapEntry(k, v as String));
-  }
+  static Future<Map<String, String>> twitchEmotes(String channel) =>
+      _optional(() async {
+        final j = await _send('/twitchemotes',
+            query: {'channel': channel.trim()}, timeout: const Duration(seconds: 40));
+        return _stringMap(j['emotes']);
+      }, <String, String>{});
 
   /// Chat badge images ("set/version" -> url) for a channel.
-  static Future<Map<String, String>> twitchBadges(String channel) async {
-    final u = Uri.parse('${Config.baseUrl}/twitchbadges')
-        .replace(queryParameters: {'channel': channel.trim()});
-    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 40));
-    if (r.statusCode != 200) return {};
-    final b = (jsonDecode(r.body) as Map<String, dynamic>)['badges'];
-    return (b as Map<String, dynamic>).map((k, v) => MapEntry(k, v as String));
-  }
+  static Future<Map<String, String>> twitchBadges(String channel) =>
+      _optional(() async {
+        final j = await _send('/twitchbadges',
+            query: {'channel': channel.trim()}, timeout: const Duration(seconds: 40));
+        return _stringMap(j['badges']);
+      }, <String, String>{});
 
   /// Months that have logs for this user in this channel, newest first.
-  static Future<List<TwitchMonth>> twitchMonths(String channel, String user) async {
-    final u = Uri.parse('${Config.baseUrl}/twitchmonths')
-        .replace(queryParameters: {'channel': channel.trim(), 'user': user.trim()});
-    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 30));
-    if (r.statusCode != 200) return [];
-    return (((jsonDecode(r.body) as Map<String, dynamic>)['months'] ?? []) as List)
-        .map((e) => TwitchMonth.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
+  static Future<List<TwitchMonth>> twitchMonths(String channel, String user) =>
+      _optional(() async {
+        final j = await _send('/twitchmonths',
+            query: {'channel': channel.trim(), 'user': user.trim()},
+            timeout: const Duration(seconds: 30));
+        return _maps(j['months']).map(TwitchMonth.fromJson).toList();
+      }, <TwitchMonth>[]);
 
   /// Which channels this user actually appears in (newest activity first).
   static Future<List<TwitchChannelHit>> twitchUserChannels(String user) async {
-    final u = Uri.parse('${Config.baseUrl}/twitchuserchannels')
-        .replace(queryParameters: {'user': user.trim()});
-    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 60));
-    if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');
-    return (((jsonDecode(r.body) as Map<String, dynamic>)['results'] ?? []) as List)
-        .map((e) => TwitchChannelHit.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final j = await _send('/twitchuserchannels',
+        query: {'user': user.trim()}, timeout: const Duration(seconds: 60));
+    return _maps(j['results']).map(TwitchChannelHit.fromJson).toList();
   }
 
   /// Twitch chat logs: what [user] said, optionally narrowed to one [channel].
@@ -327,54 +421,52 @@ class Api {
       params['year'] = p[0];
       params['month'] = p[1];
     }
-    final u = Uri.parse('${Config.baseUrl}/twitchlogs')
-        .replace(queryParameters: params);
-    final r = await http.get(u, headers: _h).timeout(const Duration(seconds: 40));
-    if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');
-    final j = jsonDecode(r.body) as Map<String, dynamic>;
-    final msgs = ((j['messages'] ?? []) as List)
-        .map((e) => TwitchMsg.fromJson(e as Map<String, dynamic>))
-        .toList();
-    return (messages: msgs, error: j['error'] as String?);
+    final j = await _send('/twitchlogs',
+        query: params, timeout: const Duration(seconds: 40));
+    final msgs = _maps(j['messages']).map(TwitchMsg.fromJson).toList();
+    final err = j['error'];
+    return (messages: msgs, error: err is String ? err : null);
   }
 
   /// Fetch a single archived post by number (for the notification deep-link).
+  /// Returns null when the post isn't in the archive.
   static Future<Post?> post(int no) async {
-    final r = await http.get(Uri.parse('${Config.baseUrl}/post?no=$no'),
-        headers: _h).timeout(_t);
-    if (r.statusCode != 200) return null;
-    final j = jsonDecode(r.body)['post'];
-    return j == null ? null : Post.fromJson(j as Map<String, dynamic>);
+    final Map<String, dynamic> j;
+    try {
+      j = await _send('/post', query: {'no': '$no'});
+    } on ServerException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
+    final p = j['post'];
+    return p is Map ? Post.fromJson(asMap(p)) : null;
   }
 
   /// Years that actually have data in our archive (newest first).
-  static Future<List<int>> years() async {
-    final r = await http.get(Uri.parse('${Config.baseUrl}/years'), headers: _h)
-        .timeout(_t);
-    if (r.statusCode != 200) return [];
-    return ((jsonDecode(r.body)['years']) as List)
-        .map((e) => (e as num).toInt()).toList();
-  }
+  static Future<List<int>> years() => _optional(() async {
+        final j = await _send('/years');
+        return asList(j['years']).map(asInt).where((y) => y > 0).toList();
+      }, <int>[]);
 
-  static Future<Map<String, dynamic>> health() async {
-    final r = await http.get(Uri.parse('${Config.baseUrl}/health'), headers: _h).timeout(_t);
-    if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
-  }
+  static Future<Map<String, dynamic>> health() => _send('/health');
 
-  static Future<void> registerDevice(String fcmToken) async {
+  /// Register this phone for push. Returns true if the server accepted it.
+  static Future<bool> registerDevice(String fcmToken) =>
+      _device({'token': fcmToken});
+
+  /// Stop push to this phone. Returns true if the server accepted it.
+  static Future<bool> unregisterDevice(String fcmToken) =>
+      _device({'token': fcmToken, 'remove': true});
+
+  static Future<bool> _device(Map<String, Object> body) async {
     try {
-      await http.post(Uri.parse('${Config.baseUrl}/devices'),
-          headers: {..._h, 'Content-Type': 'application/json'},
-          body: jsonEncode({'token': fcmToken})).timeout(_t);
-    } catch (_) {/* best effort */}
-  }
-
-  static Future<void> unregisterDevice(String fcmToken) async {
-    try {
-      await http.post(Uri.parse('${Config.baseUrl}/devices'),
-          headers: {..._h, 'Content-Type': 'application/json'},
-          body: jsonEncode({'token': fcmToken, 'remove': true})).timeout(_t);
-    } catch (_) {/* best effort */}
+      await _send('/devices', postJson: body);
+      return true;
+    } on BadResponseException {
+      return true;   // 200 with a non-JSON body still means it was accepted
+    } catch (e) {
+      debugPrint('device registration failed: $e');   // best effort
+      return false;
+    }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'reply_browser.dart';
@@ -10,7 +11,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const _green = Color(0xFF43B14B);
+  static const _green = AppColors.green;
   String _status = 'Checking…';
   bool _connected = false;
 
@@ -35,9 +36,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final h = await Api.health();
       if (!mounted) return;
+      // Be tolerant of the shape: a missing or oddly-typed "keywords" field
+      // must not turn a working connection into "Not connected".
+      final kw = h['keywords'];
+      final watching = kw is List
+          ? kw.map((e) => '$e').where((e) => e.isNotEmpty).join(', ')
+          : (kw is String ? kw : '');
       setState(() {
         _connected = true;
-        _status = 'Connected — watching ${(h['keywords'] as List).join(', ')}';
+        _status = watching.isEmpty ? 'Connected' : 'Connected — watching $watching';
+      });
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _connected = false;
+        _status = '$e';
       });
     } catch (_) {
       if (!mounted) return;
@@ -57,7 +70,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF17191C) : Colors.white,
+        color: AppColors.card(dark),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
             color: Theme.of(context).colorScheme.outline.withOpacity(0.15)),

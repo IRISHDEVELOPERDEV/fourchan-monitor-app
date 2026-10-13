@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,8 +20,8 @@ class PostCard extends StatelessWidget {
   const PostCard(this.post,
       {this.archiveMode = false, this.highlighted = false, super.key});
 
-  static const _green = Color(0xFF43B14B);
-  static const _quoteColor = Color(0xFF6AA9C9);
+  static const _green = AppColors.green;
+  static const _quoteColor = AppColors.quote;
   // Highlights >>post quote-links and the watched names so gossip is scannable.
   static final RegExp _bodyPattern =
       RegExp(r'>>\d+|\b(?:EE|Emily)\b', caseSensitive: false);
@@ -108,7 +109,7 @@ class PostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = dark ? const Color(0xFF17191C) : Colors.white;
+    final cardBg = AppColors.card(dark);
     final muted = cs.onSurface.withOpacity(0.55);
     return GestureDetector(
       onLongPress: () => _copy(context),   // long-press anywhere to copy the post
@@ -352,22 +353,44 @@ class _VideoTileState extends State<VideoTile> {
 
   Future<void> _play() async {
     setState(() => _loading = true);
+    final url = widget.url;
+    final c = VideoPlayerController.networkUrl(Uri.parse(url));
+    var adopted = false;
     try {
-      final c = VideoPlayerController.networkUrl(Uri.parse(widget.url));
       await c.initialize();
       await c.setLooping(true);
+      // The card may have scrolled away (or been reused for another post)
+      // while the video was loading -- don't adopt a controller nobody shows.
+      if (!mounted || widget.url != url) return;
       await c.play();
+      if (!mounted || widget.url != url) return;
+      final old = _c;
       setState(() => _c = c);
+      adopted = true;
+      old?.dispose();
     } catch (_) {
       // leave placeholder on failure
     } finally {
-      setState(() => _loading = false);
+      if (!adopted) c.dispose();   // never leak an orphaned controller
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void didUpdateWidget(VideoTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // List recycling can hand this state a different post: drop the old video.
+    if (oldWidget.url != widget.url) {
+      _c?.dispose();
+      _c = null;
+      _loading = false;
     }
   }
 
   @override
   void dispose() {
     _c?.dispose();
+    _c = null;
     super.dispose();
   }
 

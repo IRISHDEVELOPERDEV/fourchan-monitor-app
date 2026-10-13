@@ -69,7 +69,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
       await Future.delayed(const Duration(milliseconds: 80));
       if (!mounted) return;
       final ctx = _originKey.currentContext;
-      if (ctx != null) {
+      if (ctx != null && ctx.mounted) {
         await Scrollable.ensureVisible(ctx,
             alignment: 0.15, duration: const Duration(milliseconds: 250));
       }

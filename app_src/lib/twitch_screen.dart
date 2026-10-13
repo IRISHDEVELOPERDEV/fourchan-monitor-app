@@ -1,5 +1,6 @@
 import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
 import 'emote_text.dart';
@@ -15,7 +16,7 @@ class TwitchScreen extends StatefulWidget {
 }
 
 class _TwitchScreenState extends State<TwitchScreen> {
-  static const _green = Color(0xFF43B14B);
+  static const _green = AppColors.green;
   final _user = TextEditingController();
   final _channel = TextEditingController();
   final _find = TextEditingController();
@@ -31,6 +32,9 @@ class _TwitchScreenState extends State<TwitchScreen> {
   bool _loading = false;
   bool _searched = false;
   String? _error;
+  // Each search / log open takes a ticket; only the newest one may update the
+  // screen, so a slow older request can't paint over a newer result.
+  int _req = 0;
 
   @override
   void dispose() {
@@ -54,6 +58,7 @@ class _TwitchScreenState extends State<TwitchScreen> {
     final user = _user.text.trim();
     if (user.isEmpty) return;
     FocusScope.of(context).unfocus();
+    final req = ++_req;
     setState(() {
       _loading = true;
       _searched = true;
@@ -64,18 +69,21 @@ class _TwitchScreenState extends State<TwitchScreen> {
     });
     try {
       final hits = await Api.twitchUserChannels(user);
-      if (!mounted) return;
+      if (!mounted || req != _req) return;
       setState(() {
         _hits = hits;
         if (hits.isEmpty) {
           _error = 'No logs found for that name in the channels searched.';
         }
       });
+    } on AuthException catch (e) {
+      if (!mounted || req != _req) return;
+      setState(() => _error = '$e');
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || req != _req) return;
       setState(() => _error = 'Could not reach the log service.');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && req == _req) setState(() => _loading = false);
     }
   }
 
@@ -85,6 +93,7 @@ class _TwitchScreenState extends State<TwitchScreen> {
     if (user.isEmpty || channel.isEmpty) return;
     FocusScope.of(context).unfocus();
     final sameChannel = channel == _openChannel;
+    final req = ++_req;
     setState(() {
       _loading = true;
       _searched = true;
@@ -105,7 +114,7 @@ class _TwitchScreenState extends State<TwitchScreen> {
             : Api.twitchMonths(channel, user).catchError((_) => <TwitchMonth>[]),
       ]);
       final logs = results[0] as ({List<TwitchMsg> messages, String? error});
-      if (!mounted) return;
+      if (!mounted || req != _req) return;
       setState(() {
         _months = results[1] as List<TwitchMonth>;
         _msgs = logs.messages;
@@ -118,16 +127,19 @@ class _TwitchScreenState extends State<TwitchScreen> {
         Api.twitchEmotes(channel).catchError((_) => <String, String>{}),
         Api.twitchBadges(channel).catchError((_) => <String, String>{}),
       ]);
-      if (!mounted) return;
+      if (!mounted || req != _req) return;
       setState(() {
         _emotes = extras[0];
         _badges = extras[1];
       });
+    } on AuthException catch (e) {
+      if (!mounted || req != _req) return;
+      setState(() => _error = '$e');
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || req != _req) return;
       setState(() => _error = 'Could not reach the log service.');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && req == _req) setState(() => _loading = false);
     }
   }
 
@@ -153,6 +165,8 @@ class _TwitchScreenState extends State<TwitchScreen> {
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => setState(() {
+                  _req++;   // abandon any log request still in flight
+                  _loading = false;
                   _openChannel = null;
                   _msgs = [];
                   _error = null;
@@ -218,7 +232,7 @@ class _TwitchScreenState extends State<TwitchScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
-            color: dark ? const Color(0xFF17191C) : Colors.white,
+            color: AppColors.card(dark),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
                 color: Theme.of(context).colorScheme.outline.withOpacity(0.2)),
@@ -300,7 +314,7 @@ class _TwitchScreenState extends State<TwitchScreen> {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: dark ? const Color(0xFF17191C) : Colors.white,
+            color: AppColors.card(dark),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: Theme.of(context).colorScheme.outline.withOpacity(0.18)),

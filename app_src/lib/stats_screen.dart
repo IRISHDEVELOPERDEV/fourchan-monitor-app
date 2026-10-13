@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 import 'api.dart';
+import 'retry_button.dart';
 
 /// EE/Emily mention activity over time -- how many, which days, which hours,
 /// EE vs Emily -- so you can see the pattern at a glance instead of asking.
@@ -10,7 +12,7 @@ class StatsScreen extends StatefulWidget {
 }
 
 class _StatsScreenState extends State<StatsScreen> {
-  static const _green = Color(0xFF43B14B);
+  static const _green = AppColors.green;
   int _range = 14;
   Stats? _stats;
   String? _error;
@@ -45,6 +47,9 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
+  /// "2026-08-25" -> "08-25"; anything shorter is shown as-is (never throws).
+  static String _shortDate(String d) => d.length > 5 ? d.substring(5) : d;
+
   void _setRange(int d) {
     if (d == _range) return;   // already showing this range -- no need to refetch
     setState(() => _range = d);
@@ -54,7 +59,7 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = dark ? const Color(0xFF17191C) : Colors.white;
+    final cardBg = AppColors.card(dark);
     final muted = Theme.of(context).colorScheme.onSurface.withOpacity(0.55);
 
     return Scaffold(
@@ -65,8 +70,12 @@ class _StatsScreenState extends State<StatsScreen> {
             ? ListView(children: [
                 Padding(
                   padding: const EdgeInsets.all(28),
-                  child: Text('Could not load stats:\n$_error',
-                      textAlign: TextAlign.center),
+                  child: Column(children: [
+                    Text('Could not load stats:\n$_error',
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    RetryButton(onPressed: _load),
+                  ]),
                 ),
               ])
             : ListView(
@@ -206,7 +215,7 @@ class _StatsScreenState extends State<StatsScreen> {
               for (var i = 0; i < s.perDay.length; i++)
                 Expanded(
                   child: Text(
-                    i % labelEvery == 0 ? s.perDay[i].date.substring(5) : '',
+                    i % labelEvery == 0 ? _shortDate(s.perDay[i].date) : '',
                     style: TextStyle(fontSize: 8.5, color: muted),
                     textAlign: TextAlign.center,
                   ),

@@ -10,6 +10,27 @@ import 'package:webview_flutter/webview_flutter.dart';
 /// Route builder used with [Navigator.restorablePush] so the browser survives
 /// Android tearing the app down while you switch away (e.g. to copy your Pass
 /// token) — without this you get dropped back on the Feed.
+/// Sites the in-app browser may navigate to. Everything else is handed to the
+/// phone's own browser, so the app's 4chan-logged-in WebView never wanders off
+/// to arbitrary pages. Covers boards/sys/www (Pass login at sys.4chan.org) and
+/// the image CDN.
+const _allowedDomains = ['4chan.org', '4channel.org', '4cdn.org'];
+
+bool isAllowedBrowserHost(String host) {
+  final h = host.toLowerCase();
+  return _allowedDomains.any((d) => h == d || h.endsWith('.$d'));
+}
+
+/// A 4chan thread page ("boards.4chan.org/b/thread/123..."), the only kind of
+/// page that has the reply box our text-fill script targets.
+bool isFourchanThreadPage(String url) {
+  final u = Uri.tryParse(url);
+  if (u == null || u.scheme != 'https') return false;
+  final h = u.host.toLowerCase();
+  if (h != 'boards.4chan.org' && h != 'boards.4channel.org') return false;
+  return RegExp(r'^/[a-z0-9]+/thread/\d+').hasMatch(u.path);
+}
+
 @pragma('vm:entry-point')
 Route<void> replyBrowserRoute(BuildContext context, Object? arguments) {
   final a = (arguments as Map).cast<String, Object?>();
@@ -52,21 +73,39 @@ class _ReplyBrowserState extends State<ReplyBrowser> {
     _c = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(NavigationDelegate(
+        onNavigationRequest: _onNavigation,
         onPageStarted: (_) {
           if (mounted) setState(() => _loading = true);
         },
-        onPageFinished: (_) {
+        onPageFinished: (url) {
           if (mounted) setState(() => _loading = false);
-          _fill();
+          if (isFourchanThreadPage(url)) _fill();
         },
       ))
       ..loadRequest(Uri.parse(widget.url));
   }
 
+  NavigationDecision _onNavigation(NavigationRequest req) {
+    // Embedded frames (captcha, Cloudflare checks) stay as 4chan loads them;
+    // only top-level page changes are restricted.
+    if (!req.isMainFrame) return NavigationDecision.navigate;
+    final u = Uri.tryParse(req.url);
+    if (u == null) return NavigationDecision.prevent;
+    if (u.scheme == 'about') return NavigationDecision.navigate;
+    if ((u.scheme == 'https' || u.scheme == 'http') && isAllowedBrowserHost(u.host)) {
+      return NavigationDecision.navigate;
+    }
+    // Anything else (other sites, mailto:, intent:...) opens outside the app.
+    if (u.scheme == 'https' || u.scheme == 'http' || u.scheme == 'mailto') {
+      ext.launchUrl(u, mode: ext.LaunchMode.externalApplication);
+    }
+    return NavigationDecision.prevent;
+  }
+
   /// 4chan's own "#q" hash only works on the desktop layout, so we place the
   /// quote and text in the box ourselves and scroll it into view.
   Future<void> _fill() async {
-    // Runs on every page load: the JS below skips text that's already there, so
+    // Runs on every thread-page load: the JS below skips text that's already there, so
     // leaving the app and coming back restores the quote instead of losing it.
     final no = widget.quoteNo;
     final text = widget.prefill ?? '';

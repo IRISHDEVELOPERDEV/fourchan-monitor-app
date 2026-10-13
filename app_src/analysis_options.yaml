@@ -1,0 +1,15 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Color.withOpacity is deprecated in newer Flutter, but swapping it for
+    # withValues() changes alpha rounding slightly; kept as-is on purpose so
+    # nothing renders differently.
+    deprecated_member_use: ignore
+  exclude:
+    - build/**
+    - android/**
+
+linter:
+  rules:
+    avoid_print: true
